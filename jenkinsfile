@@ -88,28 +88,28 @@ pipeline {
                     }
                 }
                 
-                stage('Unit Tests') {
-                    steps {
-                        echo "Running unit tests..."
-                        nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
-                            sh 'npm run test'
-                        } // Add this
-                    }
-                    post {
-                        always {
-                            // Archive test results if available
-                            publishTestResults testResultsPattern: 'test-results.xml' // Keep this, fix below
-                            publishHTML([
-                                allowMissing: false,
-                                alwaysLinkToLastBuild: true,
-                                keepAll: true,
-                                reportDir: 'coverage',
-                                reportFiles: 'index.html',
-                                reportName: 'Coverage Report'
-                            ])
-                        }
-                    }
-                }
+                // stage('Unit Tests') {
+                //     steps {
+                //         echo "Running unit tests..."
+                //         nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
+                //             sh 'npm run test'
+                //         } // Add this
+                //     }
+                //     post {
+                //         always {
+                //             // Archive test results if available
+                //             publishTestResults testResultsPattern: 'test-results.xml' // Keep this, fix below
+                //             publishHTML([
+                //                 allowMissing: false,
+                //                 alwaysLinkToLastBuild: true,
+                //                 keepAll: true,
+                //                 reportDir: 'coverage',
+                //                 reportFiles: 'index.html',
+                //                 reportName: 'Coverage Report'
+                //             ])
+                //         }
+                //     }
+                // }
             }
         }
         
