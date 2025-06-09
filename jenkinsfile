@@ -1,19 +1,18 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18-alpine'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
     
-    // Triggers - equivalent to GitHub Actions "on:"
+    tools {
+        nodejs 'NodeJS-18'
+    }
+    
+    // Simplified triggers without genericTrigger
     triggers {
-        // Trigger on push to master or develop
-        // genericTrigger(
-        //     genericVariables: [
-        //         [key: 'ref', value: '$.ref'],
-        //         [key: 'repository', value: '$.repository.full_name']
-        //     ],
-        //     causeString: 'Triggered by Gitea webhook',
-        //     token: 'nextjs-pipeline-token',
-        //     printContributedVariables: true,
-        //     printPostContent: true
-        // )
+        // Poll SCM every 5 minutes for changes
         pollSCM('H/5 * * * *')
     }
     
@@ -41,16 +40,13 @@ pipeline {
             }
         }
         
-         stage('Setup Node.js') {
+        stage('Setup Node.js') {
             steps {
-                echo "Setting up Node.js ${NODE_VERSION}..."
-                // Use NodeJS plugin tool
-                nodejs(nodeJSInstallationName: 'NodeJS-18') {
-                    sh '''
-                        echo "Node version: $(node -v)"
-                        echo "NPM version: $(npm -v)"
-                    '''
-                }
+                echo "Node.js is configured via tools directive"
+                sh '''
+                    echo "Node version: $(node -v)"
+                    echo "NPM version: $(npm -v)"
+                '''
             }
         }
         
