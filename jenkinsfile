@@ -141,7 +141,7 @@ pipeline {
                             
                             echo "Deployment initiated successfully"
                         '''
-                    } catch (Exception e) {
+                    } catch (Exception e) { 
                         echo "Deployment failed: ${e.getMessage()}"
                         currentBuild.result = 'FAILURE'
                         throw e
