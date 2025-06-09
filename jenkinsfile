@@ -57,12 +57,14 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 echo "Installing dependencies..."
-                sh '''
-                    # Clean install (equivalent to npm ci)
-                    npm ci
-                    
-                    echo "Dependencies installed successfully"
-                '''
+                nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this line
+                    sh '''
+                        # Clean install (equivalent to npm ci)
+                        npm ci
+
+                        echo "Dependencies installed successfully"
+                    '''
+                } // Add this line
             }
         }
         
