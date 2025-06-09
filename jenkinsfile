@@ -68,31 +68,37 @@ pipeline {
             }
         }
         
-        stage('Test') {
+       stage('Test') {
             parallel {
                 stage('Lint') {
                     steps {
                         echo "Running ESLint..."
-                        sh 'npm run lint'
+                        nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
+                            sh 'npm run lint'
+                        } // Add this
                     }
                 }
                 
                 stage('Type Check') {
                     steps {
                         echo "Running TypeScript type check..."
-                        sh 'npm run type-check'
+                        nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
+                            sh 'npm run type-check'
+                        } // Add this
                     }
                 }
                 
                 stage('Unit Tests') {
                     steps {
                         echo "Running unit tests..."
-                        sh 'npm run test'
+                        nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
+                            sh 'npm run test'
+                        } // Add this
                     }
                     post {
                         always {
                             // Archive test results if available
-                            publishTestResults testResultsPattern: 'test-results.xml'
+                            publishTestResults testResultsPattern: 'test-results.xml' // Keep this, fix below
                             publishHTML([
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: true,
@@ -110,12 +116,14 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Building Next.js application..."
-                sh '''
-                    npm run build
-                    
-                    echo "Build completed successfully"
-                    ls -la .next/
-                '''
+                nodejs(nodeJSInstallationName: 'NodeJS-18') { // Add this
+                    sh '''
+                        npm run build
+                        
+                        echo "Build completed successfully"
+                        ls -la .next/
+                    '''
+                } // Add this
                 
                 // Archive build artifacts
                 archiveArtifacts artifacts: '.next/**/*', allowEmptyArchive: true
