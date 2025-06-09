@@ -41,19 +41,16 @@ pipeline {
             }
         }
         
-        stage('Setup Node.js') {
+         stage('Setup Node.js') {
             steps {
                 echo "Setting up Node.js ${NODE_VERSION}..."
-                sh '''
-                    # Install Node.js 18 if not available
-                    if ! command -v node &> /dev/null || [[ $(node -v) != *"v18"* ]]; then
-                        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                        sudo apt-get install -y nodejs
-                    fi
-                    
-                    echo "Node version: $(node -v)"
-                    echo "NPM version: $(npm -v)"
-                '''
+                // Use NodeJS plugin tool
+                nodejs(nodeJSInstallationName: 'NodeJS-18') {
+                    sh '''
+                        echo "Node version: $(node -v)"
+                        echo "NPM version: $(npm -v)"
+                    '''
+                }
             }
         }
         
