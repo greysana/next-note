@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+.my-editor-content:focus {
+  outline: none !important;
+  box-shadow: none !important; /* To remove potential focus rings that are implemented as box-shadows */
+}
+button{
+  cursor: pointer;
+}
