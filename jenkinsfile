@@ -4,16 +4,17 @@ pipeline {
     // Triggers - equivalent to GitHub Actions "on:"
     triggers {
         // Trigger on push to master or develop
-        genericTrigger(
-            genericVariables: [
-                [key: 'ref', value: '$.ref'],
-                [key: 'repository', value: '$.repository.full_name']
-            ],
-            causeString: 'Triggered by Gitea webhook',
-            token: 'nextjs-pipeline-token',
-            printContributedVariables: true,
-            printPostContent: true
-        )
+        // genericTrigger(
+        //     genericVariables: [
+        //         [key: 'ref', value: '$.ref'],
+        //         [key: 'repository', value: '$.repository.full_name']
+        //     ],
+        //     causeString: 'Triggered by Gitea webhook',
+        //     token: 'nextjs-pipeline-token',
+        //     printContributedVariables: true,
+        //     printPostContent: true
+        // )
+        pollSCM('H/5 * * * *')
     }
     
     // Environment variables
