@@ -1,0 +1,227 @@
+pipeline {
+    agent any
+    
+    // Triggers - equivalent to GitHub Actions "on:"
+    triggers {
+        // Trigger on push to master or develop
+        genericTrigger(
+            genericVariables: [
+                [key: 'ref', value: '$.ref'],
+                [key: 'repository', value: '$.repository.full_name']
+            ],
+            causeString: 'Triggered by Gitea webhook',
+            token: 'nextjs-pipeline-token',
+            printContributedVariables: true,
+            printPostContent: true
+        )
+    }
+    
+    // Environment variables
+    environment {
+        NODE_VERSION = '18'
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Checking out from Gitea..."
+                checkout scm
+                
+                script {
+                    // Get branch info
+                    env.GIT_BRANCH = sh(
+                        script: 'git rev-parse --abbrev-ref HEAD',
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Current branch: ${env.GIT_BRANCH}"
+                }
+            }
+        }
+        
+        stage('Setup Node.js') {
+            steps {
+                echo "Setting up Node.js ${NODE_VERSION}..."
+                sh '''
+                    # Install Node.js 18 if not available
+                    if ! command -v node &> /dev/null || [[ $(node -v) != *"v18"* ]]; then
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                        sudo apt-get install -y nodejs
+                    fi
+                    
+                    echo "Node version: $(node -v)"
+                    echo "NPM version: $(npm -v)"
+                '''
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo "Installing dependencies..."
+                sh '''
+                    # Clean install (equivalent to npm ci)
+                    npm ci
+                    
+                    echo "Dependencies installed successfully"
+                '''
+            }
+        }
+        
+        stage('Test') {
+            parallel {
+                stage('Lint') {
+                    steps {
+                        echo "Running ESLint..."
+                        sh 'npm run lint'
+                    }
+                }
+                
+                stage('Type Check') {
+                    steps {
+                        echo "Running TypeScript type check..."
+                        sh 'npm run type-check'
+                    }
+                }
+                
+                stage('Unit Tests') {
+                    steps {
+                        echo "Running unit tests..."
+                        sh 'npm run test'
+                    }
+                    post {
+                        always {
+                            // Archive test results if available
+                            publishTestResults testResultsPattern: 'test-results.xml'
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'coverage',
+                                reportFiles: 'index.html',
+                                reportName: 'Coverage Report'
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo "Building Next.js application..."
+                sh '''
+                    npm run build
+                    
+                    echo "Build completed successfully"
+                    ls -la .next/
+                '''
+                
+                // Archive build artifacts
+                archiveArtifacts artifacts: '.next/**/*', allowEmptyArchive: true
+            }
+        }
+        
+        stage('Deploy') {
+            when {
+                // Only deploy on master branch (equivalent to GitHub's if condition)
+                branch 'master'
+            }
+            steps {
+                echo "Deploying to production..."
+                
+                script {
+                    try {
+                        sh '''
+                            echo "Stopping existing containers..."
+                            docker-compose down || true
+                            
+                            echo "Building and starting new containers..."
+                            docker-compose up -d --build
+                            
+                            echo "Deployment initiated successfully"
+                        '''
+                    } catch (Exception e) {
+                        echo "Deployment failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        throw e
+                    }
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            when {
+                branch 'master'
+            }
+            steps {
+                echo "Performing health check..."
+                
+                script {
+                    sh '''
+                        echo "Waiting for application to start..."
+                        sleep 15
+                        
+                        echo "Checking application health..."
+                        max_attempts=5
+                        attempt=1
+                        
+                        while [ $attempt -le $max_attempts ]; do
+                            echo "Health check attempt $attempt/$max_attempts"
+                            
+                            if curl -f http://localhost/api/health; then
+                                echo "Health check passed!"
+                                break
+                            else
+                                echo "Health check failed, retrying in 10 seconds..."
+                                sleep 10
+                                attempt=$((attempt + 1))
+                            fi
+                        done
+                        
+                        if [ $attempt -gt $max_attempts ]; then
+                            echo "Health check failed after $max_attempts attempts"
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline completed!'
+            
+            // Clean up workspace
+            cleanWs()
+        }
+        
+        success {
+            echo 'Pipeline succeeded! 🎉'
+            
+            // You can add notifications here
+            script {
+                if (env.GIT_BRANCH == 'master') {
+                    echo 'Deployment to production completed successfully!'
+                }
+            }
+        }
+        
+        failure {
+            echo 'Pipeline failed! ❌'
+            
+            // Rollback on deployment failure
+            script {
+                if (env.GIT_BRANCH == 'master') {
+                    echo 'Rolling back deployment...'
+                    sh 'docker-compose down || true'
+                }
+            }
+        }
+        
+        unstable {
+            echo 'Pipeline unstable - some tests may have failed'
+        }
+    }
+}
