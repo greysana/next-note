@@ -39,7 +39,7 @@ export default function NoteDetailPage({
 
   const isNewNote = id === "new";
   const folderId = searchParams?.get("folderId") || "default";
-
+ 
   useEffect(() => {
     if (isNewNote) {
       setCurrentNote(null);
@@ -122,6 +122,7 @@ export default function NoteDetailPage({
 
               <button
                 onClick={handleSave}
+                name="save-note"
                 disabled={isSaving}
                 className={`flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors ${
                   isSaving ? "opacity-50 cursor-not-allowed" : ""
@@ -138,6 +139,7 @@ export default function NoteDetailPage({
 
               {!isNewNote && (
                 <button
+                name="delete-note"
                   onClick={handleDelete}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                 >

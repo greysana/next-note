@@ -23,7 +23,7 @@ test.describe('Notes Application', () => {
       await expect(page.locator('h1')).toContainText('My Notes');
       
       // Check subtitle
-      await expect(page.locator('p')).toContainText('Organize your thoughts by folders');
+      await expect(page.getByText('Organize your thoughts by folders')).toBeVisible();
       
       // Check search input is present
       await expect(page.locator('input[placeholder="Search notes..."]')).toBeVisible();
@@ -111,15 +111,15 @@ test.describe('Notes Application', () => {
       await expect(page.locator('text=Create New Folder')).toBeVisible();
       
       // Click X button to close
-      await page.locator('button svg').first().click();
-      
+      await page.getByRole('button', { name: 'close-create-folder-modal' }).click();
+
       // Modal should close
       await expect(page.locator('text=Create New Folder')).not.toBeVisible();
     });
 
     test('folder actions menu works', async ({ page }) => {
       // First create a folder if none exists (skip default folder)
-      const folderMenus = page.locator('button svg.h-5.w-5').filter({ hasText: '' });
+      const folderMenus = page.getByRole('button', { name: 'folder-actions-button' });
       
       if (await folderMenus.count() > 0) {
         // Click the first folder menu (three dots)
@@ -249,7 +249,7 @@ test.describe('Notes Application', () => {
         
         // Check edit elements are present
         await expect(page.locator('input[placeholder="Note title..."]')).toBeVisible();
-        await expect(page.locator('button', { hasText: 'Save' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'save-note' })).toBeVisible();
         await expect(page.locator('button svg')).toBeVisible(); // Delete button
       }
     });
@@ -267,7 +267,7 @@ test.describe('Notes Application', () => {
         page.on('dialog', dialog => dialog.dismiss());
         
         // Click delete button (trash icon)
-        await page.locator('button svg').click();
+        await page.getByRole('button', { name: 'delete' }).click();
         
         // Should still be on the same page since we cancelled
         await expect(page).toHaveURL(/\/notes\/[^\/]+$/);

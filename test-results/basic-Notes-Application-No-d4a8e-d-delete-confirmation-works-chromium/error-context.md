@@ -6,15 +6,11 @@
 # Error details
 
 ```
-Error: locator.click: Error: strict mode violation: locator('button svg') resolved to 3 elements:
-    1) <svg fill="none" class="h-5 w-5" data-slot="icon" stroke-width="1.5" aria-hidden="true" viewBox="0 0 24 24" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">…</svg> aka getByRole('button', { name: 'Grid View' })
-    2) <svg fill="none" class="h-5 w-5" data-slot="icon" stroke-width="1.5" aria-hidden="true" viewBox="0 0 24 24" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">…</svg> aka getByRole('button', { name: 'List View' })
-    3) <svg fill="none" data-slot="icon" stroke-width="1.5" aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4 mr-2" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">…</svg> aka getByRole('button', { name: 'New Folder' })
-
+Error: locator.click: Test timeout of 30000ms exceeded.
 Call log:
-  - waiting for locator('button svg')
+  - waiting for getByRole('button', { name: 'delete' })
 
-    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:270:42
+    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:270:60
 ```
 
 # Page snapshot
@@ -172,7 +168,7 @@ Call log:
   249 |         
   250 |         // Check edit elements are present
   251 |         await expect(page.locator('input[placeholder="Note title..."]')).toBeVisible();
-  252 |         await expect(page.locator('button', { hasText: 'Save' })).toBeVisible();
+  252 |         await expect(page.getByRole('button', { name: 'save-note' })).toBeVisible();
   253 |         await expect(page.locator('button svg')).toBeVisible(); // Delete button
   254 |       }
   255 |     });
@@ -190,8 +186,8 @@ Call log:
   267 |         page.on('dialog', dialog => dialog.dismiss());
   268 |         
   269 |         // Click delete button (trash icon)
-> 270 |         await page.locator('button svg').click();
-      |                                          ^ Error: locator.click: Error: strict mode violation: locator('button svg') resolved to 3 elements:
+> 270 |         await page.getByRole('button', { name: 'delete' }).click();
+      |                                                            ^ Error: locator.click: Test timeout of 30000ms exceeded.
   271 |         
   272 |         // Should still be on the same page since we cancelled
   273 |         await expect(page).toHaveURL(/\/notes\/[^\/]+$/);

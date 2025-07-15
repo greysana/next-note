@@ -8,14 +8,14 @@
 ```
 Error: Timed out 5000ms waiting for expect(locator).toBeVisible()
 
-Locator: locator('button').filter({ hasText: 'Save' })
+Locator: getByRole('button', { name: 'save-note' })
 Expected: visible
 Received: <element(s) not found>
 Call log:
   - expect.toBeVisible with timeout 5000ms
-  - waiting for locator('button').filter({ hasText: 'Save' })
+  - waiting for getByRole('button', { name: 'save-note' })
 
-    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:252:67
+    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:252:71
 ```
 
 # Page snapshot
@@ -191,8 +191,8 @@ Call log:
   249 |         
   250 |         // Check edit elements are present
   251 |         await expect(page.locator('input[placeholder="Note title..."]')).toBeVisible();
-> 252 |         await expect(page.locator('button', { hasText: 'Save' })).toBeVisible();
-      |                                                                   ^ Error: Timed out 5000ms waiting for expect(locator).toBeVisible()
+> 252 |         await expect(page.getByRole('button', { name: 'save-note' })).toBeVisible();
+      |                                                                       ^ Error: Timed out 5000ms waiting for expect(locator).toBeVisible()
   253 |         await expect(page.locator('button svg')).toBeVisible(); // Delete button
   254 |       }
   255 |     });
@@ -210,7 +210,7 @@ Call log:
   267 |         page.on('dialog', dialog => dialog.dismiss());
   268 |         
   269 |         // Click delete button (trash icon)
-  270 |         await page.locator('button svg').click();
+  270 |         await page.getByRole('button', { name: 'delete' }).click();
   271 |         
   272 |         // Should still be on the same page since we cancelled
   273 |         await expect(page).toHaveURL(/\/notes\/[^\/]+$/);

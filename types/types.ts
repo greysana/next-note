@@ -24,3 +24,4 @@ export type User = {
   email: string
   folders: Folder[]
 }
+

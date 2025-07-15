@@ -43,8 +43,8 @@ export default function NotesPage() {
   const [editedFolderName, setEditedFolderName] = useState("");
   const [editedFolderColor, setEditedFolderColor] = useState("");
 
-  const [activeFolderMenu, setActiveFolderMenu] = useState(""); 
-  const [activeNoteMenu, setActiveNoteMenu] = useState(""); 
+  const [activeFolderMenu, setActiveFolderMenu] = useState("");
+  const [activeNoteMenu, setActiveNoteMenu] = useState("");
 
   const folderMenuRef = useRef<HTMLDivElement>(null);
   const noteMenuRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export default function NotesPage() {
         name: newFolderName.trim(),
         color: newFolderColor,
         notes: [],
-        userId: ""
+        userId: "",
       });
       setNewFolderName("");
       setNewFolderColor("#3B82F6");
@@ -153,7 +153,7 @@ export default function NotesPage() {
     setActiveFolderMenu(activeFolderMenu === folderId ? "" : folderId);
   };
 
-  const toggleNoteMenu = (noteId: SetStateAction<string> ) => {
+  const toggleNoteMenu = (noteId: SetStateAction<string>) => {
     setActiveFolderMenu(""); // Close folder menu if open
     setActiveNoteMenu(activeNoteMenu === noteId ? "" : noteId);
   };
@@ -263,6 +263,7 @@ export default function NotesPage() {
 
                       {folder.id !== "default" && ( // Assuming 'default' folder cannot be modified/deleted extensively
                         <button
+                          name="folder-actions-button"
                           onClick={() => toggleFolderMenu(folder.id)}
                           className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
                         >
@@ -436,8 +437,9 @@ export default function NotesPage() {
                   Create New Folder
                 </h3>
                 <button
+                  title="close-create-folder-modal"
                   onClick={() => setShowNewFolderModal(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
+                  className="close-create-folder-modal p-1 text-gray-400 hover:text-gray-600"
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>

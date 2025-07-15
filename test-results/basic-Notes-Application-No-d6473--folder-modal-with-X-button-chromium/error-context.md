@@ -8,32 +8,9 @@
 ```
 Error: locator.click: Test timeout of 30000ms exceeded.
 Call log:
-  - waiting for locator('button svg').first()
-    - locator resolved to <svg fill="none" class="h-5 w-5" data-slot="icon" stroke-width="1.5" aria-hidden="true" viewBox="0 0 24 24" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">…</svg>
-  - attempting click action
-    2 × waiting for element to be visible, enabled and stable
-      - element is visible, enabled and stable
-      - scrolling into view if needed
-      - done scrolling
-      - <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">…</div> intercepts pointer events
-    - retrying click action
-    - waiting 20ms
-    2 × waiting for element to be visible, enabled and stable
-      - element is visible, enabled and stable
-      - scrolling into view if needed
-      - done scrolling
-      - <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">…</div> intercepts pointer events
-    - retrying click action
-      - waiting 100ms
-    55 × waiting for element to be visible, enabled and stable
-       - element is visible, enabled and stable
-       - scrolling into view if needed
-       - done scrolling
-       - <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">…</div> intercepts pointer events
-     - retrying click action
-       - waiting 500ms
+  - waiting for getByRole('button', { name: 'close-create-folder-modal' })
 
-    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:114:48
+    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:114:77
 ```
 
 # Page snapshot
@@ -83,7 +60,7 @@ Call log:
    23 |       await expect(page.locator('h1')).toContainText('My Notes');
    24 |       
    25 |       // Check subtitle
-   26 |       await expect(page.locator('p')).toContainText('Organize your thoughts by folders');
+   26 |       await expect(page.getByText('Organize your thoughts by folders')).toBeVisible();
    27 |       
    28 |       // Check search input is present
    29 |       await expect(page.locator('input[placeholder="Search notes..."]')).toBeVisible();
@@ -171,16 +148,16 @@ Call log:
   111 |       await expect(page.locator('text=Create New Folder')).toBeVisible();
   112 |       
   113 |       // Click X button to close
-> 114 |       await page.locator('button svg').first().click();
-      |                                                ^ Error: locator.click: Test timeout of 30000ms exceeded.
-  115 |       
+> 114 |       await page.getByRole('button', { name: 'close-create-folder-modal' }).click();
+      |                                                                             ^ Error: locator.click: Test timeout of 30000ms exceeded.
+  115 |
   116 |       // Modal should close
   117 |       await expect(page.locator('text=Create New Folder')).not.toBeVisible();
   118 |     });
   119 |
   120 |     test('folder actions menu works', async ({ page }) => {
   121 |       // First create a folder if none exists (skip default folder)
-  122 |       const folderMenus = page.locator('button svg.h-5.w-5').filter({ hasText: '' });
+  122 |       const folderMenus = page.getByRole('button', { name: 'folder-actions-button' });
   123 |       
   124 |       if (await folderMenus.count() > 0) {
   125 |         // Click the first folder menu (three dots)

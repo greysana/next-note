@@ -17,11 +17,9 @@ export default function RootLayout({
           <div className="flex h-screen">
             {/* <div className="w-64 bg-gray-100 p-4">
               <h2 className="text-xl font-bold mb-4">Notes</h2> */}
-              {/* Sidebar content */}
+            {/* Sidebar content */}
             {/* </div> */}
-            <div className="flex-1">
-              {children}
-            </div>
+            <div className="flex-1">{children}</div>
           </div>
         </AppProvider>
       </body>
