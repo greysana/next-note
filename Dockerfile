@@ -1,16 +1,16 @@
-FROM node:latest-alpine AS deps
+FROM node:alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
-FROM node:latest-alpine AS builder
+FROM node:alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:latest-alpine AS runner
+FROM node:alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production

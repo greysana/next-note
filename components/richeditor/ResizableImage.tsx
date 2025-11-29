@@ -12,7 +12,15 @@ interface CustomImageAttributes {
   "data-align"?: "left" | "center" | "right" | "none";
   "data-style-border"?: string;
   linkHref?: string;
+  rotation?: number;
+  cropData?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     customImage: {
@@ -23,14 +31,22 @@ declare module "@tiptap/core" {
     };
   }
 }
-// Extend NodeViewProps with your specific node attribute types
+
 interface ResizableImageViewProps extends NodeViewProps {
   node: NodeViewProps["node"] & {
     attrs: CustomImageAttributes;
   };
-  // deleteNode and updateAttributes are part of NodeViewProps
-  // editor is also available
 }
+
+type ResizeDirection =
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
 
 export const ResizableImage: React.FC<ResizableImageViewProps> = ({
   node,
@@ -47,10 +63,17 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
     width: initialWidth,
     height: initialHeight,
   });
-  // const [isResizing, setIsResizing] = useState(false); // To potentially change cursor style
+  const [isCropMode, setIsCropMode] = useState(false);
+  const [cropArea, setCropArea] = useState(
+    attrs.cropData || { x: 0, y: 0, width: 100, height: 100 }
+  );
+  const [rotation, setRotation] = useState(attrs.rotation || 0);
+
   const imgRef = useRef<HTMLImageElement>(null);
-  const nodeId = node.attrs.ID || "";
-  // Synchronize local state if node attributes change externally (e.g., undo/redo)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Synchronize local state if node attributes change externally
   useEffect(() => {
     const newWidth = attrs.width || "auto";
     const newHeight = attrs.height || "auto";
@@ -60,20 +83,28 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
     ) {
       setCurrentDimensions({ width: newWidth, height: newHeight });
     }
+    if (attrs.rotation !== undefined && attrs.rotation !== rotation) {
+      setRotation(attrs.rotation);
+    }
+    if (attrs.cropData) {
+      setCropArea(attrs.cropData);
+    }
   }, [
     attrs.width,
     attrs.height,
+    attrs.rotation,
+    attrs.cropData,
     currentDimensions.width,
     currentDimensions.height,
+    rotation,
   ]);
 
   const handleMouseDownResize = useCallback(
-    (e: React.MouseEvent) => {
+    (direction: ResizeDirection) => (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (!imgRef.current || !editor) return;
 
-      // setIsResizing(true);
       editor.view.dom.style.userSelect = "none";
 
       const startX = e.clientX;
@@ -81,10 +112,9 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
       const rect = imgRef.current.getBoundingClientRect();
       const initialRenderedWidth = rect.width;
       const initialRenderedHeight = rect.height;
-      const maintainAspectRatio = e.shiftKey;
+      const maintainAspectRatio = e.shiftKey || direction.includes("-");
       const originalAspectRatio = initialRenderedWidth / initialRenderedHeight;
 
-      // Store the last computed dimensions in a ref to avoid closure issues with state in event handlers
       const lastComputedDims = {
         width: `${initialRenderedWidth}px`,
         height: `${initialRenderedHeight}px`,
@@ -92,18 +122,73 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
 
       const handleMouseMoveResize = (event: MouseEvent) => {
         event.preventDefault();
-        let newWidth = initialRenderedWidth + (event.clientX - startX);
-        let newHeight = initialRenderedHeight + (event.clientY - startY);
 
-        if (maintainAspectRatio) {
-          // Adjust based on the larger change (width or height) to feel more natural
-          if (
-            Math.abs(event.clientX - startX) > Math.abs(event.clientY - startY)
-          ) {
-            newHeight = newWidth / originalAspectRatio;
-          } else {
-            newWidth = newHeight * originalAspectRatio;
-          }
+        const deltaX = event.clientX - startX;
+        const deltaY = event.clientY - startY;
+        let newWidth = initialRenderedWidth;
+        let newHeight = initialRenderedHeight;
+
+        switch (direction) {
+          case "right":
+            newWidth = initialRenderedWidth + deltaX;
+            if (maintainAspectRatio) {
+              newHeight = newWidth / originalAspectRatio;
+            }
+            break;
+          case "left":
+            newWidth = initialRenderedWidth - deltaX;
+            if (maintainAspectRatio) {
+              newHeight = newWidth / originalAspectRatio;
+            }
+            break;
+          case "bottom":
+            newHeight = initialRenderedHeight + deltaY;
+            if (maintainAspectRatio) {
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
+          case "top":
+            newHeight = initialRenderedHeight - deltaY;
+            if (maintainAspectRatio) {
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
+          case "bottom-right":
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              newWidth = initialRenderedWidth + deltaX;
+              newHeight = newWidth / originalAspectRatio;
+            } else {
+              newHeight = initialRenderedHeight + deltaY;
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
+          case "bottom-left":
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              newWidth = initialRenderedWidth - deltaX;
+              newHeight = newWidth / originalAspectRatio;
+            } else {
+              newHeight = initialRenderedHeight + deltaY;
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
+          case "top-right":
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              newWidth = initialRenderedWidth + deltaX;
+              newHeight = newWidth / originalAspectRatio;
+            } else {
+              newHeight = initialRenderedHeight - deltaY;
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
+          case "top-left":
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              newWidth = initialRenderedWidth - deltaX;
+              newHeight = newWidth / originalAspectRatio;
+            } else {
+              newHeight = initialRenderedHeight - deltaY;
+              newWidth = newHeight * originalAspectRatio;
+            }
+            break;
         }
 
         newWidth = Math.max(50, newWidth);
@@ -119,7 +204,6 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
       };
 
       const handleMouseUpResize = () => {
-        // setIsResizing(false);
         if (editor) {
           editor.view.dom.style.userSelect = "";
         }
@@ -139,6 +223,199 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
     [updateAttributes, editor]
   );
 
+  const handleRotate = useCallback(
+    (degrees: number) => (e: React.MouseEvent) => {
+      // <-- Change this line
+      e.preventDefault();
+      e.stopPropagation();
+      const newRotation = (rotation + degrees) % 360;
+      setRotation(newRotation);
+      updateAttributes({ rotation: newRotation });
+    },
+    [rotation, updateAttributes]
+  );
+  const handleCropStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCropMode(true);
+  }, []);
+
+  const handleCropCancel = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsCropMode(false);
+      setCropArea(attrs.cropData || { x: 0, y: 0, width: 100, height: 100 });
+    },
+    [attrs.cropData]
+  );
+
+  const handleCropApply = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!imgRef.current || !canvasRef.current) return;
+
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+
+      // Create a new image element
+      const sourceImg = new Image();
+
+      // Handle both data URLs and regular URLs
+      const imgSrc = attrs.src || "";
+
+      sourceImg.onload = () => {
+        try {
+          const scaleX = sourceImg.naturalWidth / 100;
+          const scaleY = sourceImg.naturalHeight / 100;
+
+          const cropX = cropArea.x * scaleX;
+          const cropY = cropArea.y * scaleY;
+          const cropWidth = cropArea.width * scaleX;
+          const cropHeight = cropArea.height * scaleY;
+
+          canvas.width = cropWidth;
+          canvas.height = cropHeight;
+
+          // Clear canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Draw the cropped portion
+          ctx.drawImage(
+            sourceImg,
+            cropX,
+            cropY,
+            cropWidth,
+            cropHeight,
+            0,
+            0,
+            cropWidth,
+            cropHeight
+          );
+
+          const croppedDataUrl = canvas.toDataURL("image/png");
+          updateAttributes({
+            src: croppedDataUrl, // Reset cropData to reflect the new, fully-cropped image
+            cropData: { x: 0, y: 0, width: 100, height: 100 },
+          }); // Also reset the local state to match
+          setCropArea({ x: 0, y: 0, width: 100, height: 100 });
+          setIsCropMode(false);
+        } catch (error) {
+          console.error("Crop error:", error);
+          alert("Could not crop image. This may be due to CORS restrictions.");
+          setIsCropMode(false);
+        }
+      };
+
+      sourceImg.onerror = () => {
+        console.error("Failed to load image for cropping");
+        alert("Could not load image for cropping.");
+        setIsCropMode(false);
+      };
+
+      // Set crossOrigin before src for external images
+      if (!imgSrc.startsWith("data:")) {
+        sourceImg.crossOrigin = "anonymous";
+      }
+      sourceImg.src = imgSrc;
+    },
+    [cropArea, attrs.src, updateAttributes]
+  );
+
+  const handleCropResize = useCallback(
+    (corner: string) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startCrop = { ...cropArea };
+
+      const handleMouseMove = (event: MouseEvent) => {
+        if (!imgRef.current) return;
+
+        const rect = imgRef.current.getBoundingClientRect();
+        const deltaXPercent = ((event.clientX - startX) / rect.width) * 100;
+        const deltaYPercent = ((event.clientY - startY) / rect.height) * 100;
+
+        const newCrop = { ...startCrop };
+
+        switch (corner) {
+          case "top-left":
+            newCrop.x = Math.max(
+              0,
+              Math.min(
+                startCrop.x + deltaXPercent,
+                startCrop.x + startCrop.width - 10
+              )
+            );
+            newCrop.y = Math.max(
+              0,
+              Math.min(
+                startCrop.y + deltaYPercent,
+                startCrop.y + startCrop.height - 10
+              )
+            );
+            newCrop.width = startCrop.width - (newCrop.x - startCrop.x);
+            newCrop.height = startCrop.height - (newCrop.y - startCrop.y);
+            break;
+          case "top-right":
+            newCrop.y = Math.max(
+              0,
+              Math.min(
+                startCrop.y + deltaYPercent,
+                startCrop.y + startCrop.height - 10
+              )
+            );
+            newCrop.width = Math.max(
+              10,
+              Math.min(startCrop.width + deltaXPercent, 100 - startCrop.x)
+            );
+            newCrop.height = startCrop.height - (newCrop.y - startCrop.y);
+            break;
+          case "bottom-left":
+            newCrop.x = Math.max(
+              0,
+              Math.min(
+                startCrop.x + deltaXPercent,
+                startCrop.x + startCrop.width - 10
+              )
+            );
+            newCrop.width = startCrop.width - (newCrop.x - startCrop.x);
+            newCrop.height = Math.max(
+              10,
+              Math.min(startCrop.height + deltaYPercent, 100 - startCrop.y)
+            );
+            break;
+          case "bottom-right":
+            newCrop.width = Math.max(
+              10,
+              Math.min(startCrop.width + deltaXPercent, 100 - startCrop.x)
+            );
+            newCrop.height = Math.max(
+              10,
+              Math.min(startCrop.height + deltaYPercent, 100 - startCrop.y)
+            );
+            break;
+        }
+
+        setCropArea(newCrop);
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [cropArea]
+  );
+
   const handleDelete = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -148,16 +425,16 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
     [deleteNode]
   );
 
-  // Prepare image styles
   const imgStyle: React.CSSProperties = {
     width: currentDimensions.width,
     height: currentDimensions.height,
     objectFit: "contain",
     border: attrs["data-style-border"] || undefined,
     display: "block",
+    transform: `rotate(${rotation}deg)`,
+    transition: "transform 0.2s ease",
   };
 
-  // Determine wrapper class for alignment (using Tailwind-like classes as example)
   let wrapperAlignmentClass = "";
   const wrapperStyle: React.CSSProperties = {};
 
@@ -179,11 +456,6 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
       break;
   }
 
-  // If the image itself is styled as display:block for margin:auto to work for center
-  // the NodeViewWrapper or an inner div might need to handle this.
-  // For `inline: true` nodes, `text-align` on a parent block is the standard way.
-  // Here, we assume the NodeViewWrapper is effectively block-like or can be styled.
-
   const imageElement = (
     <img
       ref={imgRef}
@@ -196,7 +468,8 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
           ? "border-2 border-transparent group-hover:border-blue-300"
           : ""
       } transition-colors duration-150 ease-in-out`}
-      draggable="false" // Important: let Tiptap handle node dragging
+      crossOrigin="anonymous"
+      draggable="false"
       contentEditable="false"
     />
   );
@@ -206,12 +479,12 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
       href={attrs.linkHref}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.preventDefault()} // Prevent navigation in editor, Tiptap link extension might handle this
-      className="image-link-wrapper block" // Ensure link wrapper is block for consistency
+      onClick={(e) => e.preventDefault()}
+      className="image-link-wrapper block"
       style={{
         width: currentDimensions.width,
         height: currentDimensions.height,
-      }} // Link wrapper should also take dimensions
+      }}
     >
       {imageElement}
     </a>
@@ -221,92 +494,178 @@ export const ResizableImage: React.FC<ResizableImageViewProps> = ({
 
   return (
     <NodeViewWrapper
-      className={`custom-image-node-view group relative ${wrapperAlignmentClass} ${
+      className={`custom-image-node-view group ${wrapperAlignmentClass} ${
         selected ? "ProseMirror-selectednode" : ""
       }`}
       style={wrapperStyle}
-      data-drag-handle // Makes the entire node view draggable by Tiptap
+      data-drag-handle
     >
-      {/* The main content: image possibly wrapped in a link */}
-      <div className="inline-block" style={{ lineHeight: 0 }}>
-        {" "}
-        {/* inline-block to shrink-wrap content; line-height 0 for potential space under img */}
+      <div
+        ref={containerRef}
+        className="relative inline-block"
+        style={{ lineHeight: 0 }}
+      >
         {finalRenderedImage}
-      </div>
 
-      {/* Controls shown when selected */}
-      {selected && (
-        <>
-          {/* Resize Handle (Bottom-Right) */}
+        {/* Hidden canvas for cropping */}
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+
+        {/* Crop overlay */}
+        {isCropMode && imgRef.current && (
           <div
-            className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-blue-500 border border-white rounded-full cursor-se-resize hover:bg-blue-600 shadow-md"
-            onMouseDown={handleMouseDownResize}
-            title="Resize image (Hold Shift for aspect ratio)"
-          />
-          {/* Add more resize handles (e.g., edges, other corners) for finer control if desired */}
-
-          {/* Delete Button */}
-          <button
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 shadow-md focus:outline-none"
-            onClick={handleDelete}
-            title="Delete image"
-            type="button"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              width: currentDimensions.width,
+              height: currentDimensions.height,
+              background: "transparent", // <- ensure overlay itself is transparent
+            }}
           >
-            &#x2715; {/* Multiplication X, a common symbol for close/delete */}
-          </button>
-        </>
-      )}
+            <div
+              className="absolute border-2 border-white pointer-events-auto"
+              style={{
+                left: `${cropArea.x}%`,
+                top: `${cropArea.y}%`,
+                width: `${cropArea.width}%`,
+                height: `${cropArea.height}%`,
+                // darken everything OUTSIDE the crop area while keeping the area transparent
+                boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
+                background: "transparent",
+                zIndex: 40,
+              }}
+            >
+              {/* Crop handles (unchanged) */}
+              <div
+                className="absolute -top-2 -left-2 w-5 h-5 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize hover:bg-blue-100"
+                onMouseDown={handleCropResize("top-left")}
+              />
+              <div
+                className="absolute -top-2 -right-2 w-5 h-5 bg-white border-2 border-blue-500 rounded-full cursor-ne-resize hover:bg-blue-100"
+                onMouseDown={handleCropResize("top-right")}
+              />
+              <div
+                className="absolute -bottom-2 -left-2 w-5 h-5 bg-white border-2 border-blue-500 rounded-full cursor-sw-resize hover:bg-blue-100"
+                onMouseDown={handleCropResize("bottom-left")}
+              />
+              <div
+                className="absolute -bottom-2 -right-2 w-5 h-5 bg-white border-2 border-blue-500 rounded-full cursor-se-resize hover:bg-blue-100"
+                onMouseDown={handleCropResize("bottom-right")}
+              />
+            </div>
+          </div>
+        )}
 
-      {/* Simple inline attribute editor when selected */}
-      {selected && (
-        <div className="image-attributes-editor p-2 mt-1 border rounded-md bg-gray-50 text-xs w-full clear-both">
-          <div className="mb-1">
-            <label
-              htmlFor={`alt-${nodeId}`}
-              className="block text-xs font-medium text-gray-700 mb-0.5"
+        {/* Control buttons - show on hover or when selected */}
+        {!isCropMode && (
+          <>
+            {/* Resize handles - visible on selection */}
+            {selected && (
+              <>
+                {/* Corner handles */}
+                <div
+                  className="absolute -top-2 -left-2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("top-left")}
+                  title="Resize (maintains aspect ratio)"
+                />
+                <div
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("top-right")}
+                  title="Resize (maintains aspect ratio)"
+                />
+                <div
+                  className="absolute -bottom-2 -left-2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("bottom-left")}
+                  title="Resize (maintains aspect ratio)"
+                />
+                <div
+                  className="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-se-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("bottom-right")}
+                  title="Resize (maintains aspect ratio)"
+                />
+
+                {/* Edge handles */}
+                <div
+                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-n-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("top")}
+                  title="Resize (Hold Shift for aspect ratio)"
+                />
+                <div
+                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-s-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("bottom")}
+                  title="Resize (Hold Shift for aspect ratio)"
+                />
+                <div
+                  className="absolute top-1/2 -left-2 -translate-y-1/2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-w-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("left")}
+                  title="Resize (Hold Shift for aspect ratio)"
+                />
+                <div
+                  className="absolute top-1/2 -right-2 -translate-y-1/2 w-5 h-5 bg-blue-500 border-2 border-white rounded-full cursor-e-resize hover:bg-blue-600 shadow-lg z-20"
+                  onMouseDown={handleMouseDownResize("right")}
+                  title="Resize (Hold Shift for aspect ratio)"
+                />
+              </>
+            )}
+
+            {/* Toolbar - visible on hover or selection */}
+            <div
+              className={`absolute -top-14 left-1/2 -translate-x-1/2 flex gap-1 bg-white rounded-lg shadow-xl p-2 z-30 transition-opacity duration-200 ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
             >
-              Alt Text:
-            </label>
-            <input
-              id={`alt-${nodeId}`}
-              type="text"
-              value={attrs.alt || ""}
-              onChange={(e) => updateAttributes({ alt: e.target.value })}
-              className="w-full p-1 border border-gray-300 rounded-sm text-xs"
-              placeholder="Describe the image"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor={`title-${nodeId}`}
-              className="block text-xs font-medium text-gray-700 mb-0.5"
+              <button
+                className="w-9 h-9 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center text-lg font-bold shadow-md"
+                onClick={handleRotate(-90)}
+                title="Rotate left 90°"
+                type="button"
+              >
+                ↺
+              </button>
+              <button
+                className="w-9 h-9 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center text-lg font-bold shadow-md"
+                onClick={handleRotate(90)}
+                title="Rotate right 90°"
+                type="button"
+              >
+                ↻
+              </button>
+              <button
+                className="w-9 h-9 bg-green-500 text-white rounded hover:bg-green-600 flex items-center justify-center text-lg shadow-md"
+                onClick={handleCropStart}
+                title="Crop image"
+                type="button"
+              >
+                ✂
+              </button>
+              <button
+                className="w-9 h-9 bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center text-lg shadow-md"
+                onClick={handleDelete}
+                title="Delete image"
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Crop mode controls */}
+        {isCropMode && (
+          <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex gap-2 bg-white rounded-lg shadow-xl p-2 z-30">
+            <button
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-medium shadow-md"
+              onClick={handleCropApply}
+              type="button"
             >
-              Tooltip (Title):
-            </label>
-            <input
-              id={`title-${nodeId}`}
-              type="text"
-              value={attrs.title || ""}
-              onChange={(e) => updateAttributes({ title: e.target.value })}
-              className="w-full p-1 border border-gray-300 rounded-sm text-xs"
-              placeholder="Image title attribute"
-            />
+              Apply Crop
+            </button>
+            <button
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm font-medium shadow-md"
+              onClick={handleCropCancel}
+              type="button"
+            >
+              Cancel
+            </button>
           </div>
-          {/* TODO: Add inputs for linkHref, data-style-border, and a select for data-align */}
-          {/* Example for linkHref:
-           <div className="mt-1">
-            <label htmlFor={`link-${node.ID}`} className="block text-xs font-medium text-gray-700 mb-0.5">Link URL:</label>
-            <input
-              id={`link-${node.ID}`}
-              type="url"
-              value={attrs.linkHref || ""}
-              onChange={(e) => updateAttributes({ linkHref: e.target.value || null })}
-              className="w-full p-1 border border-gray-300 rounded-sm text-xs"
-              placeholder="https://example.com"
-            />
-          </div> */}
-        </div>
-      )}
+        )}
+      </div>
     </NodeViewWrapper>
   );
 };

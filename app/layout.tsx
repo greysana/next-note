@@ -2,9 +2,11 @@
 import { AppProvider } from "@/hooks/AppContext";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { initializeIndexes } from "@/db/init-indexes";
 
 const inter = Inter({ subsets: ["latin"] });
 
+// initializeIndexes();
 export default function RootLayout({
   children,
 }: {

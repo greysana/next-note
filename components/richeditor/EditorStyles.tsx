@@ -26,6 +26,55 @@ export const EditorStyles = () => (
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
+    /* Block styling with hover effects */
+    .ProseMirror > * {
+      position: relative;
+      padding-left: 2rem;
+      margin-left: -2rem;
+      transition: all 0.15s ease;
+      border-radius: 4px;
+    }
+
+    .ProseMirror > *:hover {
+      background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    .ProseMirror > *.active-block {
+      background-color: rgba(59, 130, 246, 0.1);
+      box-shadow: inset 2px 0 0 #3b82f6;
+    }
+
+    /* Drag handle */
+    .ProseMirror > *::before {
+      content: "⋮⋮";
+      position: absolute;
+      left: 0.25rem;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      cursor: grab;
+      color: #9ca3af;
+      font-size: 1rem;
+      line-height: 1;
+      transition: opacity 0.15s ease;
+      user-select: none;
+      letter-spacing: -2px;
+    }
+
+    .ProseMirror > *:hover::before {
+      opacity: 1;
+    }
+
+    .ProseMirror > *.active-block::before {
+      opacity: 1;
+      color: #3b82f6;
+    }
+
+    .ProseMirror > *:active::before {
+      cursor: grabbing;
+    }
+
     .ProseMirror table {
       border-collapse: collapse;
       table-layout: fixed;

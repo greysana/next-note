@@ -4,7 +4,6 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt, selectedText, preset, fullContent } = await request.json();
 
-    // Validate required fields
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
@@ -12,7 +11,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get OpenRouter API key from environment
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -21,10 +19,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Configure the model - you can change this to your preferred model
+    
     const model = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet";
 
-    // Build the system prompt based on preset and context
     let systemPrompt =
       `You are a helpful AI assistant that generates HTML content. IMPORTANT: Please format your response using proper HTML syntax that is compatible. Use the following HTML elements for styling: 
 - <h1>, <h2>, <h3> for headings

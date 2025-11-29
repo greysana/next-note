@@ -1,7 +1,7 @@
 import { User, Folder } from '@/types/types'
 
 export const dummyUser: User = {
-  id: 'user-1',
+  _id: 'user-1',
   name: 'John Doe',
   email: 'john@example.com',
   folders: [],
@@ -9,12 +9,12 @@ export const dummyUser: User = {
 
 export const dummyFolders: Folder[] = [
   {
-    id: 'folder-1',
+    _id: 'folder-1',
     name: 'Personal',
     userId: 'user-1',
     notes: [
       {
-        id: 'note-1',
+        _id: 'note-1',
         title: 'Shopping List',
         content: '<p>Milk, Eggs, Bread</p>',
         createdAt: new Date('2025-05-01'),
@@ -23,7 +23,7 @@ export const dummyFolders: Folder[] = [
         folderId: null
       },
       {
-        id: 'note-2',
+        _id: 'note-2',
         title: 'Project Ideas',
         content: '<p>Build a notes app with Tiptap</p>',
         createdAt: new Date('2025-05-10'),
@@ -35,12 +35,12 @@ export const dummyFolders: Folder[] = [
     color: ''
   },
   {
-    id: 'folder-2',
+    _id: 'folder-2',
     name: 'Work',
     userId: 'user-1',
     notes: [
       {
-        id: 'note-3',
+        _id: 'note-3',
         title: 'Meeting Notes',
         content: '<p>Discuss project timeline</p>',
         createdAt: new Date('2025-05-05'),

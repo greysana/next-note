@@ -246,12 +246,19 @@ const stopRecording = () => {
     setIsPlaying(false);
   };
 
-  const saveRecording = () => {
+  const saveRecording = async () => {
     if (audioBlob && audioUrl) {
-      onAudioSave(audioBlob, audioUrl); // Pass the blob and the local URL
-      deleteRecording(); // Reset after saving
+      // Convert blob to base64 data URL for persistence
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        onAudioSave(audioBlob, base64Audio); // Pass base64 instead of blob URL
+        deleteRecording(); // Reset after saving
+      };
+      reader.readAsDataURL(audioBlob);
     }
   };
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

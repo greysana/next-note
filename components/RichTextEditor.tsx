@@ -13,6 +13,8 @@ import OrderedList from "@tiptap/extension-ordered-list";
 import Heading from "@tiptap/extension-heading";
 import Blockquote from "@tiptap/extension-blockquote";
 import CodeBlock from "@tiptap/extension-code-block";
+import Placeholder from "@tiptap/extension-placeholder";
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import { RichTextEditorProps } from "../types/editor";
@@ -50,7 +52,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
   const [showLinkCardInput, setShowLinkCardInput] = useState(false);
   const [showTableControls, setShowTableControls] = useState(false);
   const [showMediaInput, setShowMediaInput] = useState(false);
-  const [showAudioRecorder, setShowAudioRecorder] = useState(false); 
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [mediaType, setMediaType] = useState<"video" | "audio">("video");
   const [showTextColors, setShowTextColors] = useState(false);
   const [showHighlightColors, setShowHighlightColors] = useState(false);
@@ -87,6 +89,16 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
           },
         },
       }),
+      Placeholder.configure({
+        placeholder: "Write something amazing...",
+        // or use a function for dynamic placeholders
+        // placeholder: ({ node }) => {
+        //   if (node.type.name === 'heading') {
+        //     return 'What's the title?'
+        //   }
+        //   return 'Can you add some further context?'
+        // },
+      }),
       Heading.configure({
         levels: [1, 2, 3, 4, 5, 6],
         HTMLAttributes: {
@@ -120,7 +132,8 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       Table.configure({
         resizable: true,
         HTMLAttributes: {
-          class: "table-auto border-collapse border border-gray-400 w-full",
+          class:
+            "table-auto border-collapse border border-gray-400 w-full m-10 p-10",
         },
       }).extend({
         addAttributes() {
@@ -218,12 +231,12 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       CustomVideo,
       CustomAudio,
       LinkCard,
-      TextStyle, 
+      TextStyle,
       Color.configure({
         types: ["textStyle"],
       }),
       Highlight.configure({
-        multicolor: true, 
+        multicolor: true,
         HTMLAttributes: {
           class: "p-1 rounded",
         },
@@ -267,15 +280,60 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
         },
       }),
     ],
-    content: content || "<p>Start typing here...</p>",
+    content: content || null,
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
+      const { doc } = editor.state;
+      const lastNode = doc.lastChild;
+
+      // If the last node is not a paragraph, add one
+      if (lastNode && lastNode.type.name !== "paragraph") {
+        editor.commands.insertContentAt(doc.content.size, {
+          type: "paragraph",
+        });
+      }
     },
   });
 
+  // useEffect(() => {
+  //   if (!editor) return;
+
+  //   const updateActiveBlock = () => {
+  //     const { from } = editor.state.selection;
+  //     const { doc } = editor.state;
+
+  //     // Remove active class from all blocks
+  //     const editorElement = document.querySelector(".ProseMirror");
+  //     if (editorElement) {
+  //       editorElement.querySelectorAll(".active-block").forEach((el) => {
+  //         el.classList.remove("active-block");
+  //       });
+  //     }
+
+  //     // Find and mark the active block
+  //     doc.nodesBetween(from, from, (node, pos) => {
+  //       if (node.isBlock && pos < from) {
+  //         const domNode = editor.view.nodeDOM(pos);
+  //         if (domNode && domNode instanceof Element) {
+  //           domNode.classList.add("active-block");
+  //         }
+  //         return false; // Don't descend into children
+  //       }
+  //     });
+  //   };
+
+  //   editor.on("selectionUpdate", updateActiveBlock);
+  //   editor.on("transaction", updateActiveBlock);
+
+  //   return () => {
+  //     editor.off("selectionUpdate", updateActiveBlock);
+  //     editor.off("transaction", updateActiveBlock);
+  //   };
+  // }, [editor]);
+
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || "<p></p>");
+      editor.commands.setContent(content || null);
     }
   }, [content, editor]);
   // useEffect(() => {
@@ -431,17 +489,15 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
     return null;
   }
 
-
   const isInTable = editor.isActive("table");
-  
+
   return (
     <div>
       <div className=" rounded-md relative">
         <EditorContent
           editor={editor}
-          className="my-editor-content min-h-[600px] prose max-w-none focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0  border border-gray-300 rounded-md p-2 overflow-x-scroll mb-5"
+          className="my-editor-content min-h-[600px] prose max-w-none [&_.ProseMirror]:focus:outline-none [&_.ProseMirror]:focus-visible:outline-none border border-gray-300 rounded-md p-2 overflow-x-scroll mb-5"
         />
-
         <input
           ref={fileInputRef}
           type="file"
@@ -524,7 +580,6 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
             onHighlightColorClick={() =>
               setShowHighlightColors(!showHighlightColors)
             }
-
           />
           <HeadingGroup editor={editor} />
           <ListGroup editor={editor} />

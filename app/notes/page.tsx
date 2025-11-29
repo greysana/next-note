@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState, useEffect, useRef, SetStateAction } from "react";
+import { useState, useEffect, useRef, SetStateAction, useMemo } from "react";
 import { useAppContext } from "@/hooks/AppContext";
 import Link from "next/link";
 import {
@@ -10,33 +10,27 @@ import {
   DocumentTextIcon,
   TrashIcon,
   EllipsisVerticalIcon,
-  PencilIcon, // Added
-  Square2StackIcon, // Added
-  ListBulletIcon, // Added
-  Squares2X2Icon, // Added
-  XMarkIcon, // Added for closing modals/menus
+  PencilIcon,
+  Square2StackIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
 } from "@heroicons/react/24/outline";
-import { Note } from "@/types/types";
+import NewFolderModal from "@/components/notes/folder/NewFolder";
+import { Folder } from "@/types/note";
+import UpdateFolderModal from "@/components/notes/folder/UpdateFolder";
+import FolderCard from "@/components/notes/folder/Folder";
+import folderService from "@/services/folderService";
 
 export default function NotesPage() {
-  const {
-    notes,
-    folders,
-    getNotesByFolder,
-    addFolder,
-    deleteFolder,
-    editFolder, // Assume added to AppContext
-    duplicateFolder, // Assume added to AppContext
-    deleteNote, // Assume added to AppContext
-    duplicateNote, // Assume added to AppContext
-  } = useAppContext();
+  const { notes, folders, getNotesByFolder, duplicateFolder } = useAppContext();
+
+  console.table(notes);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState("#3B82F6");
 
-  // --- New State Variables ---
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   const [showEditFolderModal, setShowEditFolderModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<any>({}); // { id, name, color }
@@ -77,46 +71,13 @@ export default function NotesPage() {
     };
   }, []);
 
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      addFolder({
-        name: newFolderName.trim(),
-        color: newFolderColor,
-        notes: [],
-        userId: "",
-      });
-      setNewFolderName("");
-      setNewFolderColor("#3B82F6");
-      setShowNewFolderModal(false);
-    }
-  };
-
   // --- Folder Edit Functions ---
-  const openEditFolderModal = (folder: {
-    id?: string;
-    name: any;
-    color: any;
-    notes?: Note[];
-    userId?: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-  }) => {
+  const openEditFolderModal = (folder: Folder) => {
     setEditingFolder(folder);
     setEditedFolderName(folder.name);
     setEditedFolderColor(folder.color);
     setShowEditFolderModal(true);
     setActiveFolderMenu("");
-  };
-
-  const handleUpdateFolder = () => {
-    if (editingFolder && editedFolderName.trim()) {
-      editFolder(editingFolder.id, {
-        name: editedFolderName.trim(),
-        color: editedFolderColor,
-      });
-      setShowEditFolderModal(false);
-      setEditingFolder("");
-    }
   };
 
   // --- Folder & Note Action Handlers ---
@@ -126,36 +87,21 @@ export default function NotesPage() {
   };
 
   const handleDeleteFolder = (folderId: string) => {
-    // Consider adding a confirmation dialog here
-    deleteFolder(folderId);
+    folderService.deleteFolder(folderId);
     setActiveFolderMenu("");
   };
 
-  const handleDuplicateNote = (noteId: string | undefined) => {
-    duplicateNote(noteId ?? "");
-    setActiveNoteMenu("");
-  };
-
-  const handleDeleteNote = (noteId: string | undefined) => {
-    // Consider adding a confirmation dialog here
-    deleteNote(noteId ?? "");
-    setActiveNoteMenu("");
-  };
-
-  const filteredNotes = notes?.filter(
-    (note) =>
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredNotes = useMemo(() => {
+    notes?.filter(
+      (note) =>
+        note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        note.content?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, notes]);
 
   const toggleFolderMenu = (folderId: SetStateAction<string>) => {
-    setActiveNoteMenu(""); // Close note menu if open
+    setActiveNoteMenu("");
     setActiveFolderMenu(activeFolderMenu === folderId ? "" : folderId);
-  };
-
-  const toggleNoteMenu = (noteId: SetStateAction<string>) => {
-    setActiveFolderMenu(""); // Close folder menu if open
-    setActiveNoteMenu(activeNoteMenu === noteId ? "" : noteId);
   };
 
   return (
@@ -214,12 +160,12 @@ export default function NotesPage() {
         >
           {folders.map((folder) => {
             const folderNotes = searchTerm
-              ? filteredNotes.filter((note) => note.folderId === folder.id)
-              : getNotesByFolder(folder.id);
+              ? filteredNotes.filter((note) => note.folderId === folder._id)
+              : getNotesByFolder(folder._id!);
 
             return (
               <div
-                key={folder.id}
+                key={folder._id}
                 className={`${viewMode === "grid" ? "bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden" : ""}`}
               >
                 {/* Folder Header */}
@@ -254,44 +200,49 @@ export default function NotesPage() {
 
                     <div className="flex items-center gap-2 relative">
                       <Link
-                        href={`/notes/new?folderId=${folder.id}`}
+                        href={`/notes/new?folderId=${folder._id}`}
                         className="flex items-center px-3 py-1.5 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors text-sm"
                       >
                         <PlusIcon className="h-4 w-4 md:mr-2" />
                         <span className="hidden md:inline">Add Note</span>
                       </Link>
 
-                      {folder.id !== "default" && ( // Assuming 'default' folder cannot be modified/deleted extensively
+                      {folder._id !== "default" && ( // Assuming 'default' folder cannot be modified/deleted extensively
                         <button
                           name="folder-actions-button"
-                          onClick={() => toggleFolderMenu(folder.id)}
+                          onClick={() => toggleFolderMenu(folder._id!)}
                           className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
                         >
                           <EllipsisVerticalIcon className="h-5 w-5" />
                         </button>
                       )}
                       {/* Folder Actions Menu */}
-                      {activeFolderMenu === folder.id &&
-                        folder.id !== "default" && (
+                      {activeFolderMenu === folder._id &&
+                        folder._id !== "default" && (
                           <div
                             ref={folderMenuRef}
                             className="absolute right-0 top-10 mt-2 w-48 bg-white rounded-md shadow-xl z-20 border border-gray-200 py-1"
                           >
                             <button
-                              onClick={() => openEditFolderModal(folder)}
+                              onClick={() =>
+                                openEditFolderModal({
+                                  ...folder,
+                                  _id: folder._id!,
+                                })
+                              }
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                             >
                               <PencilIcon className="h-4 w-4 mr-2" /> Edit
                             </button>
                             <button
-                              onClick={() => handleDuplicateFolder(folder.id)}
+                              onClick={() => handleDuplicateFolder(folder._id!)}
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                             >
                               <Square2StackIcon className="h-4 w-4 mr-2" />{" "}
                               Duplicate
                             </button>
                             <button
-                              onClick={() => handleDeleteFolder(folder.id)}
+                              onClick={() => handleDeleteFolder(folder._id!)}
                               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                             >
                               <TrashIcon className="h-4 w-4 mr-2" /> Delete
@@ -315,96 +266,14 @@ export default function NotesPage() {
                       }
                     >
                       {folderNotes.map((note) => (
-                        <div key={note.id} className="relative">
-                          <Link
-                            href={`/notes/${note.id}`}
-                            className={`block p-4 rounded-xl transition-all duration-200
-                                        ${
-                                          viewMode === "grid"
-                                            ? "bg-white hover:shadow-md border border-gray-100 hover:border-gray-200 transform hover:scale-105"
-                                            : "bg-white/80 hover:bg-white border border-transparent hover:border-gray-200 flex justify-between items-center"
-                                        }`}
-                          >
-                            <div className="flex-grow">
-                              <div
-                                className={`flex items-start justify-between ${viewMode === "grid" ? "mb-2" : ""}`}
-                              >
-                                <h3 className="font-semibold text-gray-800 truncate flex-1 pr-2">
-                                  {note.title || "Untitled"}
-                                </h3>
-                                {viewMode === "grid" && (
-                                  <DocumentTextIcon className="h-4 w-4 text-gray-400 ml-2 flex-shrink-0" />
-                                )}
-                              </div>
-                              {viewMode === "grid" && (
-                                <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-                                  {note.content
-                                    .replace(/<[^>]*>/g, "")
-                                    .substring(0, 100) || "No content"}
-                                </p>
-                              )}
-                              <p className="text-xs text-gray-500">
-                                {new Date(note.updatedAt).toLocaleDateString()}
-                                {viewMode === "list" &&
-                                  note.content
-                                    .replace(/<[^>]*>/g, "")
-                                    .substring(0, 30) && (
-                                    <span className="text-gray-400 ml-2">
-                                      -{" "}
-                                      {note.content
-                                        .replace(/<[^>]*>/g, "")
-                                        .substring(0, 30)}
-                                      ...
-                                    </span>
-                                  )}
-                              </p>
-                            </div>
-                            {viewMode === "list" && (
-                              <DocumentTextIcon className="h-5 w-5 text-gray-400 ml-2 flex-shrink-0" />
-                            )}
-                          </Link>
-                          {/* Note Actions Button (always visible for simplicity, or position absolutely) */}
-                          <button
-                            onClick={() => toggleNoteMenu(note.id)}
-                            className={`absolute p-1 rounded-full hover:bg-gray-200 transition-colors
-                                        ${
-                                          viewMode === "grid"
-                                            ? "top-3 right-3 text-gray-400 hover:text-gray-600"
-                                            : "top-1/2 right-10 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                                        }`}
-                            // Add this style if the Link is not relative: style={{ zIndex: 10 }}
-                          >
-                            <EllipsisVerticalIcon className="h-5 w-5" />
-                          </button>
-
-                          {/* Note Actions Menu */}
-                          {activeNoteMenu === note.id && (
-                            <div
-                              ref={noteMenuRef}
-                              className={`absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl z-20 border border-gray-200 py-1 ${viewMode === "grid" ? "top-8" : "top-full"}`}
-                            >
-                              <button
-                                onClick={() => handleDuplicateNote(note.id)}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                              >
-                                <Square2StackIcon className="h-4 w-4 mr-2" />{" "}
-                                Duplicate
-                              </button>
-                              <Link
-                                href={`/notes/${note.id}?edit=true`} // Or however you handle editing
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                              >
-                                <PencilIcon className="h-4 w-4 mr-2" /> Edit
-                              </Link>
-                              <button
-                                onClick={() => handleDeleteNote(note.id)}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
-                              >
-                                <TrashIcon className="h-4 w-4 mr-2" /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <FolderCard
+                          key={note._id}
+                          note={note}
+                          viewMode={viewMode}
+                          activeNoteMenu={activeNoteMenu}
+                          setActiveNoteMenu={setActiveNoteMenu}
+                          setActiveFolderMenu={setActiveFolderMenu}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -414,7 +283,7 @@ export default function NotesPage() {
                         No notes in this folder yet
                       </p>
                       <Link
-                        href={`/notes/new?folderId=${folder.id}`}
+                        href={`/notes/new?folderId=${folder._id}`}
                         className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
                       >
                         <PlusIcon className="h-4 w-4 mr-2" />
@@ -430,125 +299,28 @@ export default function NotesPage() {
 
         {/* New Folder Modal */}
         {showNewFolderModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
-                  Create New Folder
-                </h3>
-                <button
-                  title="close-create-folder-modal"
-                  onClick={() => setShowNewFolderModal(false)}
-                  className="close-create-folder-modal p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Folder Name
-                </label>
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter folder name"
-                  autoFocus
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Color
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {colors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setNewFolderColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${newFolderColor === color ? "border-gray-800 ring-2 ring-offset-1 ring-gray-800" : "border-transparent hover:border-gray-400"}`}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowNewFolderModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateFolder}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
-                >
-                  Create Folder
-                </button>
-              </div>
-            </div>
-          </div>
+          <NewFolderModal
+            newFolderName={newFolderName}
+            newFolderColor={newFolderColor}
+            setNewFolderName={setNewFolderName}
+            setNewFolderColor={setNewFolderColor}
+            setShowNewFolderModal={setShowNewFolderModal}
+            colors={colors}
+          />
         )}
 
         {/* Edit Folder Modal */}
         {showEditFolderModal && editingFolder && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Edit Folder</h3>
-                <button
-                  onClick={() => setShowEditFolderModal(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Folder Name
-                </label>
-                <input
-                  type="text"
-                  value={editedFolderName}
-                  onChange={(e) => setEditedFolderName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter folder name"
-                  autoFocus
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Color
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {colors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setEditedFolderColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${editedFolderColor === color ? "border-gray-800 ring-2 ring-offset-1 ring-gray-800" : "border-transparent hover:border-gray-400"}`}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowEditFolderModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateFolder}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
+          <UpdateFolderModal
+            editedFolderName={editedFolderName}
+            editedFolderColor={editedFolderColor}
+            editingFolder={editingFolder}
+            colors={colors}
+            setEditingFolder={setEditingFolder}
+            setEditedFolderName={setEditedFolderName}
+            setEditedFolderColor={setEditedFolderColor}
+            setShowEditFolderModal={setShowEditFolderModal}
+          />
         )}
       </div>
     </div>

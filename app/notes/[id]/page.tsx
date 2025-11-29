@@ -11,24 +11,31 @@ import {
   CheckIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import noteService from "@/services/noteService";
 
 export default function NoteDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const {
-    notes,
-    folders,
-    currentNote,
-    setCurrentNote,
-    updateNote,
-    deleteNote,
-    addNote,
-  } = useAppContext();
+  const { notes, folders, currentNote, setCurrentNote, setIsRefetch } =
+    useAppContext();
 
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(`
+    <p>
+    Start typing here
+    </p>    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    `);
   const [selectedFolderId, setSelectedFolderId] = useState<string>("default");
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -39,7 +46,7 @@ export default function NoteDetailPage({
 
   const isNewNote = id === "new";
   const folderId = searchParams?.get("folderId") || "default";
- 
+
   useEffect(() => {
     if (isNewNote) {
       setCurrentNote(null);
@@ -47,7 +54,7 @@ export default function NoteDetailPage({
       setContent("");
       setSelectedFolderId(folderId);
     } else {
-      const found = notes.find((n) => n.id === id) || null;
+      const found = notes.find((n) => n._id === id) || null;
       if (found) {
         setCurrentNote(found);
         setTitle(found.title ?? "");
@@ -59,20 +66,22 @@ export default function NoteDetailPage({
 
   const handleSave = async () => {
     setIsSaving(true);
+    console.table( params);
 
     try {
       if (isNewNote) {
-        addNote({
+        console.log(content);
+        noteService.addNote({
           title: title || "Untitled Note",
           content,
           folderId: selectedFolderId,
-          userId: ""
+          userId: "",
         });
         setLastSaved(new Date());
         router.push("/notes");
       } else {
         if (!currentNote) return;
-        updateNote(currentNote.id ?? "", {
+        noteService.updateNote(currentNote._id ?? "", {
           title,
           content,
           folderId: selectedFolderId,
@@ -82,18 +91,20 @@ export default function NoteDetailPage({
     } catch (error) {
       console.error("Error saving note:", error);
     } finally {
+      setIsRefetch(true);
       setIsSaving(false);
     }
   };
 
   const handleDelete = () => {
     if (currentNote && confirm("Are you sure you want to delete this note?")) {
-      deleteNote(currentNote.id ?? "");
+      noteService.deleteNote(currentNote._id ?? "");
       router.push("/notes");
+      setIsRefetch(true);
     }
   };
 
-  const selectedFolder = folders.find((f) => f.id === selectedFolderId);
+  const selectedFolder = folders.find((f) => f._id === selectedFolderId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -139,7 +150,7 @@ export default function NoteDetailPage({
 
               {!isNewNote && (
                 <button
-                name="delete-note"
+                  name="delete-note"
                   onClick={handleDelete}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                 >
@@ -168,7 +179,7 @@ export default function NoteDetailPage({
                   className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
                   {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
+                    <option key={folder._id} value={folder._id}>
                       {folder.name}
                     </option>
                   ))}
