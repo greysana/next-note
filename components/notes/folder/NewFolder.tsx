@@ -2,6 +2,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Dispatch, SetStateAction } from "react";
 import folderService from "../../../services/folderService";
 import { useAppContext } from "@/hooks/AppContext";
+import { useAuth } from "@/hooks/AuthContext";
 
 type NewFolderModalProps = {
   setNewFolderName: Dispatch<SetStateAction<string>>;
@@ -21,13 +22,14 @@ const NewFolderModal = ({
   colors,
 }: NewFolderModalProps) => {
   const { setIsRefetch } = useAppContext();
+  const { user } = useAuth();
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
       folderService.addFolder({
         name: newFolderName.trim(),
         color: newFolderColor,
         notes: [],
-        userId: "",
+        userId: user?._id,
       });
       setNewFolderName("");
       setNewFolderColor("#3B82F6");

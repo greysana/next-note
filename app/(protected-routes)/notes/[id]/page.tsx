@@ -12,6 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import noteService from "@/services/noteService";
+import { useAuth } from "@/hooks/AuthContext";
 
 export default function NoteDetailPage({
   params,
@@ -20,7 +21,7 @@ export default function NoteDetailPage({
 }) {
   const { notes, folders, currentNote, setCurrentNote, setIsRefetch } =
     useAppContext();
-
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState(`
     <p>
@@ -48,45 +49,53 @@ export default function NoteDetailPage({
   const folderId = searchParams?.get("folderId") || "default";
 
   useEffect(() => {
-    if (isNewNote) {
-      setCurrentNote(null);
-      setTitle("");
-      setContent("");
-      setSelectedFolderId(folderId);
-    } else {
-      const found = notes.find((n) => n._id === id) || null;
+    const getNote = async () => {
+      const note = await noteService.getNoteById(id);
+      console.table(note);
+      const { note: found } = note;
       if (found) {
         setCurrentNote(found);
         setTitle(found.title ?? "");
         setContent(found.content ?? "");
         setSelectedFolderId(found.folderId || "default");
       }
+    };
+    if (isNewNote) {
+      setCurrentNote(null);
+      setTitle("");
+      setContent("");
+      setSelectedFolderId(folderId);
+    } else {
+      // const found = notes.find((n) => n._id === id) || null;
+      getNote();
     }
   }, [id, notes, setCurrentNote, isNewNote, folderId]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    console.table( params);
+    console.table(params);
 
     try {
       if (isNewNote) {
         console.log(content);
-        noteService.addNote({
+        const note = await noteService.addNote({
           title: title || "Untitled Note",
           content,
           folderId: selectedFolderId,
-          userId: "",
+          userId: user?._id ?? "",
         });
+        console.table(note);
         setLastSaved(new Date());
-        router.push("/notes");
+        router.push("/notes/" + note._id);
       } else {
         if (!currentNote) return;
-        noteService.updateNote(currentNote._id ?? "", {
+        const note = await noteService.updateNote(currentNote._id ?? "", {
           title,
           content,
           folderId: selectedFolderId,
         });
         setLastSaved(new Date());
+        console.table(note);
       }
     } catch (error) {
       console.error("Error saving note:", error);

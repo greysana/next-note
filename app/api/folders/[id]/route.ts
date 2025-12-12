@@ -17,7 +17,7 @@ export async function GET(
     if (!folder) {
       return NextResponse.json({ error: "folder not Found" }, { status: 404 });
     }
-    console.table(folder);
+    // console.table(folder);
     return NextResponse.json({ folder });
   } catch (error) {
     console.error(error);
@@ -53,9 +53,9 @@ export async function PUT(
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "folder not Found" }, { status: 404 });
     }
-    console.table(result);
-    console.table(body);
-    console.table(request);
+    // console.table(result);
+    // console.table(body);
+    // console.table(request);
 
     return NextResponse.json({
       success: true,
@@ -85,7 +85,7 @@ export async function DELETE(
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "folder not Found" }, { status: 404 });
     }
-    console.table(result);
+    // console.table(result);
     return NextResponse.json({
       success: true,
       deleted: result.deletedCount > 0,

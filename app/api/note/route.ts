@@ -1,29 +1,45 @@
 import { getDatabase } from "@/db/mongodb";
 import { NextResponse } from "next/server";
-import { CACHE_TAGS } from "@/lib/cache";
+import { CACHE_TAGS, invalidateNotesCache } from "@/lib/cache";
 import { unstable_cache } from "next/cache";
+import { checkRateLimit } from "@/lib/auth/redis-auth";
+import { requireAuth } from "@/lib/auth/session";
+import { Note } from "@/types/types";
+import { NoteDocument } from "@/types/database.types";
+import { ObjectId } from "mongodb";
+import { toNotes } from "@/lib/mappers/note.mapper";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const user = await requireAuth();
+    const rateLimit = await checkRateLimit(user.email, "get_note", 100, 60);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
 
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = parseInt(searchParams.get("limit") || "100");
     const skip = (page - 1) * limit;
 
     const getCachedNotes = unstable_cache(
-      async () => {
+      async (): Promise<{ notes: Note[]; total: number }> => {
         const db = await getDatabase();
-        const notes = await db
-          .collection("notes")
-          .find({})
+        const noteDocs = await db
+          .collection<NoteDocument>("notes")
+          .find({ userId: new ObjectId(user.userId) })
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
           .toArray();
 
-        const total = await db.collection("notes").countDocuments();
-        return { notes, total };
+        const total = await db
+          .collection<NoteDocument>("notes")
+          .countDocuments({ userId: new ObjectId(user.userId) });
+        return { notes: toNotes(noteDocs), total };
       },
       [`notes-page-${page}-limit-${limit}`],
       {
@@ -33,7 +49,7 @@ export async function GET(request: Request) {
     );
     const { notes, total } = await getCachedNotes();
 
-    console.table(notes);
+    // console.table(notes);
     return NextResponse.json(
       {
         notes,
@@ -51,6 +67,13 @@ export async function GET(request: Request) {
       }
     );
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    console.error("GET note error:", error);
     console.log(error);
     return NextResponse.json(
       { error: "Failed to fetch notes" },
@@ -61,6 +84,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireAuth();
+    const rateLimit = await checkRateLimit(user.email, "get_note", 100, 60);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
     const body = await request.json();
 
     if (!body.title || !body.content) {
@@ -72,20 +103,31 @@ export async function POST(request: Request) {
 
     const db = await getDatabase();
 
-    const result = await db.collection("notes").insertOne({
+    const noteDoc = {
       title: body.title,
       content: body.content,
-      folderId: body.folderId,
+      folderId: body.folderId ? new ObjectId(body.folderId) : null,
+      userId: new ObjectId(body.userId),
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
-
-    console.table(result);
+    };
+    const result = await db
+      .collection<NoteDocument>("notes")
+      .insertOne(noteDoc);
+    invalidateNotesCache();
+    // console.table(result);
     return NextResponse.json({
       success: true,
-      id: result.insertedId,
+      _id: result.insertedId.toString(),
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    console.error("GET note error:", error);
     console.log(error);
     return NextResponse.json(
       { error: "Failed to create note" },

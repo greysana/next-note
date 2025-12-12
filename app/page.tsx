@@ -6,6 +6,9 @@ import {
   DocumentTextIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
+import { useAuth } from "@/hooks/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
   const { notes, folders } = useAppContext();
@@ -21,6 +24,15 @@ export default function Home() {
     const folder = folders.find((f) => f._id === folderId);
     return folder?.name || "Uncategorized";
   };
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+    console.log(user);
+  }, [user, loading, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">

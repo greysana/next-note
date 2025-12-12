@@ -20,6 +20,7 @@ import { Folder } from "@/types/note";
 import UpdateFolderModal from "@/components/notes/folder/UpdateFolder";
 import FolderCard from "@/components/notes/folder/Folder";
 import folderService from "@/services/folderService";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function NotesPage() {
   const { notes, folders, getNotesByFolder, duplicateFolder } = useAppContext();
@@ -42,6 +43,7 @@ export default function NotesPage() {
 
   const folderMenuRef = useRef<HTMLDivElement>(null);
   const noteMenuRef = useRef<HTMLDivElement>(null);
+  const debounceSearchText = useDebounce(searchTerm, 300);
 
   const colors = [
     "#3B82F6",
@@ -92,13 +94,14 @@ export default function NotesPage() {
   };
 
   const filteredNotes = useMemo(() => {
-    notes?.filter(
+    return notes?.filter(
       (note) =>
-        note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.content?.toLowerCase().includes(searchTerm.toLowerCase())
+        note.title?.toLowerCase().includes(debounceSearchText.toLowerCase()) ||
+        note.content?.toLowerCase().includes(debounceSearchText.toLowerCase())
     );
-  }, [searchTerm, notes]);
+  }, [debounceSearchText, notes]);
 
+  console.table(filteredNotes);
   const toggleFolderMenu = (folderId: SetStateAction<string>) => {
     setActiveNoteMenu("");
     setActiveFolderMenu(activeFolderMenu === folderId ? "" : folderId);
@@ -159,8 +162,8 @@ export default function NotesPage() {
           className={`space-y-8 ${viewMode === "list" ? "divide-y divide-gray-200" : ""}`}
         >
           {folders.map((folder) => {
-            const folderNotes = searchTerm
-              ? filteredNotes.filter((note) => note.folderId === folder._id)
+            const folderNotes = debounceSearchText
+              ? filteredNotes?.filter((note) => note.folderId === folder._id)
               : getNotesByFolder(folder._id!);
 
             return (

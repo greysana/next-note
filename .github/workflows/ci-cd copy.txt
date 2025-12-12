@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v4
     
@@ -27,3 +27,20 @@ jobs:
         npm run type-check
         npm run test
         npm run build
+
+  deploy:
+    runs-on: self-hosted
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy with Docker Compose
+      run: |
+        docker-compose down || true
+        docker-compose up -d --build
+        
+    - name: Health check
+      run: |
+        sleep 15
+        curl -f http://localhost/api/health

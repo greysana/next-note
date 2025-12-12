@@ -82,7 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (isRefetch) {
       fetchData();
     }
-  }, [isRefetch, notes, folders]);
+  }, [isRefetch]);
 
   const duplicateNote = (id: string) => {
     const noteToClone = notes.find((n) => n._id === id);

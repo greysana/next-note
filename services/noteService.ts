@@ -1,7 +1,7 @@
-import { useAppContext } from "@/hooks/AppContext";
 import { Note } from "@/types/types";
 
 export interface CreateNoteDto {
+  id?: string;
   title: string;
   content: string;
   userId: string;
@@ -28,18 +28,21 @@ class NoteService {
     return response.json();
   }
 
-  async getNotes(): Promise<Note[]> {
+  async getNotes(page: number, limit: number): Promise<Note[]> {
     try {
-      const response = await fetch(`${API_URL}/api/note`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        next: {
-          revalidate: 60,
-          tags: ["notes"],
-        },
-      });
+      const response = await fetch(
+        `${API_URL}/api/note?page=${page}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          next: {
+            revalidate: 60,
+            tags: ["notes"],
+          },
+        }
+      );
       return this.handleResponse<Note[]>(response);
     } catch (error) {
       console.error("Error fetching notes:", error);
@@ -59,6 +62,7 @@ class NoteService {
           tags: [`note-${id}`],
         },
       });
+      
       return this.handleResponse<Note>(response);
     } catch (error) {
       console.error(`Error fetching note ${id}:`, error);
