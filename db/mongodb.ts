@@ -1,50 +1,64 @@
 import { MongoClient, Db, MongoClientOptions } from "mongodb";
 import { initializeIndexes } from "./init-indexes";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("Please add your MongoDB URI to .env file");
-}
-
+// Remove the immediate check - we'll check at runtime instead
 const uri = process.env.MONGODB_URI as string;
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 let indexesInitialized = false;
+
 const options: MongoClientOptions = {
   maxPoolSize: 10,
   minPoolSize: 2,
   maxIdleTimeMS: 30000,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
-  // Add explicit TLS/SSL configuration
   tls: true,
   tlsAllowInvalidCertificates: false,
-  // Retry logic
   retryWrites: true,
   retryReads: true,
 };
 
-if (process.env.NODE_ENV === "development") {
-  const globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-    _indexesInitialized?: boolean;
-  };
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+function ensureClient(): Promise<MongoClient> {
+  if (!uri) {
+    throw new Error("Please add your MongoDB URI to .env file");
   }
-  clientPromise = globalWithMongo._mongoClientPromise!;
-  indexesInitialized = globalWithMongo._indexesInitialized || false;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+
+  if (clientPromise) {
+    return clientPromise;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const globalWithMongo = global as typeof globalThis & {
+      _mongoClientPromise?: Promise<MongoClient>;
+      _indexesInitialized?: boolean;
+    };
+    
+    if (!globalWithMongo._mongoClientPromise) {
+      client = new MongoClient(uri, options);
+      globalWithMongo._mongoClientPromise = client.connect();
+    }
+    clientPromise = globalWithMongo._mongoClientPromise!;
+    indexesInitialized = globalWithMongo._indexesInitialized || false;
+  } else {
+    client = new MongoClient(uri, options);
+    clientPromise = client.connect();
+  }
+
+  return clientPromise;
 }
 
-export default clientPromise;
+// Export a promise that initializes on first use
+export default new Proxy({} as Promise<MongoClient>, {
+  get(target, prop) {
+    return ensureClient()[prop as keyof Promise<MongoClient>];
+  }
+}) as Promise<MongoClient>;
 
 export async function getDatabase(dbName?: string): Promise<Db> {
   try {
-    const client = await clientPromise;
+    const client = await ensureClient();
     const db = client.db(dbName);
 
     // Initialize indexes once per application lifecycle

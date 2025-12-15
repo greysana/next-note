@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 
 export const CACHE_TAGS = {
   notes: "notes",
@@ -20,7 +20,7 @@ export function invalidateNoteCache(id: string) {
 export function invalidateUsersCache() {
   revalidateTag(CACHE_TAGS.users);
 }
-export function invalidateUserCache(id: string) {
+export async function invalidateUserCache(id: string) {
   revalidateTag(CACHE_TAGS.user(id));
 }
 
@@ -29,6 +29,12 @@ export function invalidateFoldersCache() {
 }
 export function invalidateFolderCache(id: string) {
   revalidateTag(CACHE_TAGS.folder(id));
+}
+
+export async function invalidateAllCache() {
+  revalidateTag(CACHE_TAGS.notes);
+  revalidateTag(CACHE_TAGS.users);
+  revalidateTag(CACHE_TAGS.folders);
 }
 // export function invalidateAllNotes() {
 //   revalidatePath("api/note");

@@ -51,13 +51,14 @@ export default function NoteDetailPage({
   useEffect(() => {
     const getNote = async () => {
       const note = await noteService.getNoteById(id);
-      console.table(note);
-      const { note: found } = note;
-      if (found) {
-        setCurrentNote(found);
-        setTitle(found.title ?? "");
-        setContent(found.content ?? "");
-        setSelectedFolderId(found.folderId || "default");
+
+      console.table(notes);
+      if (note) {
+        setCurrentNote(note);
+        setTitle(note.title ?? "");
+        setContent(note.content ?? "");
+        setSelectedFolderId(note.folderId || "default");
+        console.log(note.content);
       }
     };
     if (isNewNote) {
@@ -66,11 +67,10 @@ export default function NoteDetailPage({
       setContent("");
       setSelectedFolderId(folderId);
     } else {
-      // const found = notes.find((n) => n._id === id) || null;
       getNote();
     }
   }, [id, notes, setCurrentNote, isNewNote, folderId]);
-
+  console.log(content);
   const handleSave = async () => {
     setIsSaving(true);
     console.table(params);
@@ -197,6 +197,7 @@ export default function NoteDetailPage({
 
               {selectedFolder && (
                 <div
+                  data-testid="color-note"
                   className="px-3 py-1 rounded-full text-sm font-medium text-white"
                   style={{ backgroundColor: selectedFolder.color }}
                 >

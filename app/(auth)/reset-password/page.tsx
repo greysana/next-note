@@ -1,4 +1,3 @@
-// app/(auth)/reset-password/page.tsx
 'use client';
 
 import { useActionState, Suspense } from 'react';
@@ -36,8 +35,9 @@ async function resetPasswordAction(prevState: unknown, formData: FormData) {
     }
 
     return { success: true, message: data.message };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    console.error(error)
+    // console.error(error)
 
     return { error: 'Network error. Please try again.', success: false };
   }
@@ -92,7 +92,7 @@ function ResetPasswordForm() {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            New password
+            New Password
           </label>
           <input
             id="password"

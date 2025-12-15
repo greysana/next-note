@@ -9,17 +9,15 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-
   useEffect(() => {
     fetchUser();
-    
   }, []);
 
   const fetchUser = async () => {
@@ -32,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         console.table(data);
         setUser(data.user);
+        // router.push("/");
       } else {
         setUser(null);
       }

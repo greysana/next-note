@@ -26,6 +26,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     if (!session) {
       return null;
     }
+    console.log(session)
 
     return {
       userId: session.userId,

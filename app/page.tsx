@@ -30,8 +30,11 @@ export default function Home() {
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
+      // setIsRefetch(true);
     }
-    console.log(user);
+    // setIsRefetch(true);
+
+    // console.log(user);
   }, [user, loading, router]);
 
   return (
@@ -54,7 +57,10 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Total Notes</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p
+                  className="text-3xl font-bold text-gray-900"
+                  data-testid="total-notes-count"
+                >
                   {notes.length}
                 </p>
               </div>

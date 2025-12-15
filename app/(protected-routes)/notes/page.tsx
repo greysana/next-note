@@ -25,7 +25,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 export default function NotesPage() {
   const { notes, folders, getNotesByFolder, duplicateFolder } = useAppContext();
 
-  console.table(notes);
+  // console.table(notes);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
@@ -44,7 +44,7 @@ export default function NotesPage() {
   const folderMenuRef = useRef<HTMLDivElement>(null);
   const noteMenuRef = useRef<HTMLDivElement>(null);
   const debounceSearchText = useDebounce(searchTerm, 300);
-
+  const { setIsRefetch } = useAppContext();
   const colors = [
     "#3B82F6",
     "#EF4444",
@@ -56,6 +56,7 @@ export default function NotesPage() {
 
   // --- Click Outside Handler for Menus ---
   useEffect(() => {
+    setIsRefetch(true);
     function handleClickOutside(event: { target: any }) {
       if (
         folderMenuRef.current &&
@@ -71,7 +72,7 @@ export default function NotesPage() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [setIsRefetch]);
 
   // --- Folder Edit Functions ---
   const openEditFolderModal = (folder: Folder) => {
@@ -101,7 +102,7 @@ export default function NotesPage() {
     );
   }, [debounceSearchText, notes]);
 
-  console.table(filteredNotes);
+  // console.table(filteredNotes);
   const toggleFolderMenu = (folderId: SetStateAction<string>) => {
     setActiveNoteMenu("");
     setActiveFolderMenu(activeFolderMenu === folderId ? "" : folderId);
@@ -184,6 +185,7 @@ export default function NotesPage() {
                     <div className="flex items-center">
                       <div
                         className="p-3 rounded-xl mr-4"
+                        data-testid={`folder-icon-${folder._id}`}
                         style={{ backgroundColor: folder.color + "20" }} // '20' for 12.5% opacity
                       >
                         <FolderIcon
@@ -213,6 +215,7 @@ export default function NotesPage() {
                       {folder._id !== "default" && ( // Assuming 'default' folder cannot be modified/deleted extensively
                         <button
                           name="folder-actions-button"
+                          aria-label="folder-actions-button"
                           onClick={() => toggleFolderMenu(folder._id!)}
                           className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
                         >

@@ -1,4 +1,3 @@
-// app/(auth)/request-password-reset/page.tsx
 'use client';
 
 import { useActionState } from 'react';
@@ -21,8 +20,9 @@ async function requestResetAction(prevState: unknown, formData: FormData) {
     }
 
     return { success: true, message: data.message };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    console.error(error)
+    // console.error(error)
 
     return { error: 'Network error. Please try again.', success: false };
   }
@@ -68,7 +68,7 @@ export default function RequestPasswordResetPage() {
             htmlFor="email"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Email address
+            Email Address
           </label>
           <input
             id="email"

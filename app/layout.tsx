@@ -3,7 +3,6 @@ import { AppProvider } from "@/hooks/AppContext";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/AuthContext";
-import { ProtectedRoute } from "@/components/protected-route";
 
 const inter = Inter({ subsets: ["latin"] });
 

@@ -6,286 +6,160 @@
 # Error details
 
 ```
-Error: locator.click: Test timeout of 30000ms exceeded.
-Call log:
-  - waiting for getByRole('button', { name: 'delete' })
+Error: Timed out 5000ms waiting for expect(locator).toContainText(expected)
 
-    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:270:60
+Locator: locator('h1')
+Expected string: "My Notes"
+Received string: "NEXT NOTE"
+Call log:
+  - expect.toContainText with timeout 5000ms
+  - waiting for locator('h1')
+    7 × locator resolved to <h1 class="text-3xl font-bold text-gray-900">NEXT NOTE</h1>
+      - unexpected value "NEXT NOTE"
+
+    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:16:38
 ```
 
 # Page snapshot
 
 ```yaml
-- button "AI Generate":
-  - img
-  - text: AI Generate
-- link "Back to Notes":
-  - /url: /notes
-- button "Create Note"
-- textbox "Note title..."
-- combobox:
-  - option "General" [selected]
-- text: General
-- textbox:
-  - paragraph
-- button "Bold (Ctrl+B)":
-  - img
-- button "Italic (Ctrl+I)":
-  - img
-- button "Underline (Ctrl+U)":
-  - img
-- button "Text Color":
-  - img
-- button "Highlight Color":
-  - img
-- button "Headings":
-  - img
-- button "Bullet List":
-  - img
-- button "Numbered List":
-  - img
-- button "Align Left":
-  - img
-- button "Align Center":
-  - img
-- button "Align Right":
-  - img
-- button "Justify":
-  - img
-- button "Quote Block":
-  - img
-- button "Code Block":
-  - img
-- button "Insert Horizontal Line":
-  - img
-- button "Select text first to add link":
-  - img
-- button "Insert Link Card":
-  - img
-- button "Insert Image":
-  - img
-- button "Upload Image":
-  - img
-- button "Add Video from URL":
-  - img
-- button "Add Audio from URL":
-  - img
-- button "Record Audio":
-  - img
-- button "Upload Video/Audio File":
-  - img
-- button "Insert Table":
-  - img
-- button "Undo (Ctrl+Z)":
-  - img
-- button "Redo (Ctrl+Y)":
-  - img
-- alert
+- heading "NEXT NOTE" [level=1]
+- paragraph: Secure Authentication
+- heading "Sign in to your account" [level=2]
+- text: Email address
+- textbox "Email address"
+- text: Password
+- textbox "Password"
+- checkbox "Remember me"
+- text: Remember me
+- link "Forgot password?":
+  - /url: /request-password-reset
+- button "Sign in"
+- paragraph:
+  - text: Don't have an account?
+  - link "Sign up":
+    - /url: /register
+- alert: NEXT NOTE
 ```
 
 # Test source
 
 ```ts
-  170 |       // Fill in note details
-  171 |       await page.locator('input[placeholder="Note title..."]').fill(TEST_NOTE_TITLE);
-  172 |       
-  173 |       // Note: The RichTextEditor might need special handling depending on implementation
-  174 |       // For now, we'll assume it has a contenteditable area or textarea
-  175 |       const contentEditor = page.locator('[contenteditable="true"]').or(page.locator('textarea')).first();
-  176 |       if (await contentEditor.isVisible()) {
-  177 |         await contentEditor.fill(TEST_NOTE_CONTENT);
-  178 |       }
-  179 |       
-  180 |       // Select folder (keep default for simplicity)
-  181 |       const folderSelect = page.locator('select');
-  182 |       await folderSelect.selectOption({ index: 0 });
-  183 |       
-  184 |       // Save the note
-  185 |       await page.locator('button', { hasText: 'Create Note' }).click();
-  186 |       
-  187 |       // Should redirect to notes list
-  188 |       await expect(page).toHaveURL('/notes');
-  189 |     });
-  190 |
-  191 |     test('back button works correctly', async ({ page }) => {
-  192 |       await page.goto('/notes/new');
-  193 |       
-  194 |       // Click back button
-  195 |       await page.locator('text=Back to Notes').click();
-  196 |       
-  197 |       // Should return to notes list
-  198 |       await expect(page).toHaveURL('/notes');
-  199 |     });
-  200 |
-  201 |     test('folder selection works', async ({ page }) => {
-  202 |       await page.goto('/notes/new');
-  203 |       
-  204 |       const folderSelect = page.locator('select');
-  205 |       
-  206 |       // Get all options
-  207 |       const options = await folderSelect.locator('option').all();
-  208 |       
-  209 |       if (options.length > 1) {
-  210 |         // Select second option
-  211 |         await folderSelect.selectOption({ index: 1 });
-  212 |         
-  213 |         // Verify selection
-  214 |         const selectedValue = await folderSelect.inputValue();
-  215 |         expect(selectedValue).toBeTruthy();
-  216 |       }
-  217 |     });
-  218 |
-  219 |     test('save button shows loading state', async ({ page }) => {
-  220 |       await page.goto('/notes/new');
-  221 |       
-  222 |       // Fill minimum required fields
-  223 |       await page.locator('input[placeholder="Note title..."]').fill('Quick Test');
-  224 |       
-  225 |       // Click save and immediately check for loading state
-  226 |       const saveButton = page.locator('button', { hasText: 'Create Note' });
-  227 |       await saveButton.click();
-  228 |       
-  229 |       // The button text might briefly change to "Creating..."
-  230 |       // This test might be flaky depending on how fast the operation is
-  231 |       // await expect(page.locator('button', { hasText: 'Creating...' })).toBeVisible();
-  232 |     });
-  233 |
-  234 |     test('can edit existing note', async ({ page }) => {
-  235 |       // This test assumes there's an existing note to edit
-  236 |       // You might need to create one first or mock the data
-  237 |       
-  238 |       // Navigate to notes list first
-  239 |       await page.goto('/notes');
-  240 |       
-  241 |       // Look for an existing note link
-  242 |       const noteLinks = page.locator('a[href*="/notes/"]').filter({ hasNotText: 'new' });
-  243 |       
-  244 |       if (await noteLinks.count() > 0) {
-  245 |         await noteLinks.first().click();
-  246 |         
-  247 |         // Should be on note detail page
-  248 |         await expect(page).toHaveURL(/\/notes\/[^\/]+$/);
-  249 |         
-  250 |         // Check edit elements are present
-  251 |         await expect(page.locator('input[placeholder="Note title..."]')).toBeVisible();
-  252 |         await expect(page.getByRole('button', { name: 'save-note' })).toBeVisible();
-  253 |         await expect(page.locator('button svg')).toBeVisible(); // Delete button
-  254 |       }
-  255 |     });
-  256 |
-  257 |     test('delete confirmation works', async ({ page }) => {
-  258 |       // Navigate to an existing note (this test assumes one exists)
-  259 |       await page.goto('/notes');
-  260 |       
-  261 |       const noteLinks = page.locator('a[href*="/notes/"]').filter({ hasNotText: 'new' });
-  262 |       
-  263 |       if (await noteLinks.count() > 0) {
-  264 |         await noteLinks.first().click();
-  265 |         
-  266 |         // Set up dialog handler to cancel deletion
-  267 |         page.on('dialog', dialog => dialog.dismiss());
-  268 |         
-  269 |         // Click delete button (trash icon)
-> 270 |         await page.getByRole('button', { name: 'delete' }).click();
-      |                                                            ^ Error: locator.click: Test timeout of 30000ms exceeded.
-  271 |         
-  272 |         // Should still be on the same page since we cancelled
-  273 |         await expect(page).toHaveURL(/\/notes\/[^\/]+$/);
-  274 |       }
-  275 |     });
-  276 |   });
-  277 |
-  278 |   test.describe('Integration Tests', () => {
-  279 |     
-  280 |     test('complete note creation workflow', async ({ page }) => {
-  281 |       // Start from notes page
-  282 |       await page.goto('/notes');
-  283 |       
-  284 |       // Create a new folder first
-  285 |       await page.locator('button', { hasText: 'New Folder' }).click();
-  286 |       await page.locator('input[placeholder="Enter folder name"]').fill('Integration Test Folder');
-  287 |       await page.locator('button', { hasText: 'Create Folder' }).click();
-  288 |       
-  289 |       // Find the new folder and add a note
-  290 |       await expect(page.locator('text=Integration Test Folder')).toBeVisible();
-  291 |       
-  292 |       // Click add note in the new folder
-  293 |       const addNoteButton = page.locator('text=Add Note').or(page.locator('text=Create First Note')).first();
-  294 |       await addNoteButton.click();
-  295 |       
-  296 |       // Should be on new note page with folder pre-selected
-  297 |       await expect(page).toHaveURL(/\/notes\/new/);
-  298 |       
-  299 |       // Create the note
-  300 |       await page.locator('input[placeholder="Note title..."]').fill('Integration Test Note');
-  301 |       
-  302 |       const contentEditor = page.locator('[contenteditable="true"]').or(page.locator('textarea')).first();
-  303 |       if (await contentEditor.isVisible()) {
-  304 |         await contentEditor.fill('This note was created during integration testing.');
-  305 |       }
-  306 |       
-  307 |       await page.locator('button', { hasText: 'Create Note' }).click();
-  308 |       
-  309 |       // Should be back on notes page
-  310 |       await expect(page).toHaveURL('/notes');
-  311 |       
-  312 |       // New note should be visible in the folder
-  313 |       await expect(page.locator('text=Integration Test Note')).toBeVisible();
-  314 |     });
-  315 |
-  316 |     test('search across folders works', async ({ page }) => {
-  317 |       await page.goto('/notes');
-  318 |       
-  319 |       // Enter search term
-  320 |       const searchInput = page.locator('input[placeholder="Search notes..."]');
-  321 |       await searchInput.fill('integration');
-  322 |       
-  323 |       // Results should filter (this depends on having test data)
-  324 |       // We can at least verify the search input works
-  325 |       await expect(searchInput).toHaveValue('integration');
-  326 |     });
-  327 |
-  328 |     test('responsive design elements are present', async ({ page }) => {
-  329 |       await page.goto('/notes');
-  330 |       
-  331 |       // Test mobile-specific classes exist (these are Tailwind responsive classes)
-  332 |       const headerDiv = page.locator('div.flex.flex-col.md\\:flex-row').first();
-  333 |       await expect(headerDiv).toBeVisible();
-  334 |       
-  335 |       // Test that responsive grid classes exist
-  336 |       // const gridElements = page.locator('.grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3');
-  337 |       // Elements might not be visible if no notes exist, so we just check the page structure
-  338 |     });
-  339 |   });
-  340 |
-  341 |   test.describe('Error Handling', () => {
-  342 |     
-  343 |     test('handles invalid note ID gracefully', async ({ page }) => {
-  344 |       // Try to access a non-existent note
-  345 |       await page.goto('/notes/invalid-note-id');
-  346 |       
-  347 |       // Should either redirect or show appropriate error
-  348 |       // The exact behavior depends on your error handling implementation
-  349 |       await page.waitForLoadState('networkidle');
-  350 |       
-  351 |       // At minimum, the page should not crash
-  352 |       await expect(page.locator('body')).toBeVisible();
-  353 |     });
-  354 |
-  355 |     test('handles empty form submission', async ({ page }) => {
-  356 |       await page.goto('/notes/new');
-  357 |       
-  358 |       // Try to save without filling anything
-  359 |       await page.locator('button', { hasText: 'Create Note' }).click();
-  360 |       
-  361 |       // Should handle gracefully (might show validation or create with defaults)
-  362 |       await page.waitForLoadState('networkidle');
-  363 |       await expect(page.locator('body')).toBeVisible();
-  364 |     });
-  365 |   });
-  366 |
-  367 |   test.describe('Performance Tests', () => {
-  368 |     
-  369 |     test('pages load within reasonable time', async ({ page }) => {
-  370 |       const startTime = Date.now();
+   1 | import { test, expect } from '@playwright/test';
+   2 |
+   3 | // Test data constants
+   4 | const TEST_FOLDER_NAME = 'Test Folder';
+   5 | const TEST_NOTE_TITLE = 'Test Note Title';
+   6 | const TEST_NOTE_CONTENT = 'This is test note content for automated testing.';
+   7 | // const UPDATED_NOTE_TITLE = 'Updated Test Note';
+   8 | // const UPDATED_NOTE_CONTENT = 'This is updated test note content.';
+   9 |
+   10 | test.describe('Notes Application', () => {
+   11 |   
+   12 |   test.beforeEach(async ({ page }) => {
+   13 |     // Navigate to the notes page before each test
+   14 |     await page.goto('/notes');
+   15 |     // Wait for the page to be fully loaded
+>  16 |     await expect(page.locator('h1')).toContainText('My Notes');
+      |                                      ^ Error: Timed out 5000ms waiting for expect(locator).toContainText(expected)
+   17 |   });
+   18 |
+   19 |   test.describe('Notes List Page (/notes)', () => {
+   20 |     
+   21 |     test('loads notes page correctly', async ({ page }) => {
+   22 |       // Check main heading
+   23 |       await expect(page.locator('h1')).toContainText('My Notes');
+   24 |       
+   25 |       // Check subtitle
+   26 |       await expect(page.getByText('Organize your thoughts by folders')).toBeVisible();
+   27 |       
+   28 |       // Check search input is present
+   29 |       await expect(page.locator('input[placeholder="Search notes..."]')).toBeVisible();
+   30 |       
+   31 |       // Check new folder button is present
+   32 |       await expect(page.locator('button', { hasText: 'New Folder' })).toBeVisible();
+   33 |       
+   34 |       // Check view mode toggles are present
+   35 |       await expect(page.locator('[title="Grid View"]')).toBeVisible();
+   36 |       await expect(page.locator('[title="List View"]')).toBeVisible();
+   37 |     });
+   38 |
+   39 |     test('can switch between grid and list view modes', async ({ page }) => {
+   40 |       const gridButton = page.locator('[title="Grid View"]');
+   41 |       const listButton = page.locator('[title="List View"]');
+   42 |       
+   43 |       // Should start in grid view (default)
+   44 |       await expect(gridButton).toHaveClass(/bg-blue-500/);
+   45 |       
+   46 |       // Switch to list view
+   47 |       await listButton.click();
+   48 |       await expect(listButton).toHaveClass(/bg-blue-500/);
+   49 |       await expect(gridButton).not.toHaveClass(/bg-blue-500/);
+   50 |       
+   51 |       // Switch back to grid view
+   52 |       await gridButton.click();
+   53 |       await expect(gridButton).toHaveClass(/bg-blue-500/);
+   54 |       await expect(listButton).not.toHaveClass(/bg-blue-500/);
+   55 |     });
+   56 |
+   57 |     test('search functionality works', async ({ page }) => {
+   58 |       const searchInput = page.locator('input[placeholder="Search notes..."]');
+   59 |       
+   60 |       // Type in search box
+   61 |       await searchInput.fill('test search term');
+   62 |       await expect(searchInput).toHaveValue('test search term');
+   63 |       
+   64 |       // Clear search
+   65 |       await searchInput.clear();
+   66 |       await expect(searchInput).toHaveValue('');
+   67 |     });
+   68 |
+   69 |     test('can create a new folder', async ({ page }) => {
+   70 |       // Click new folder button
+   71 |       await page.locator('button', { hasText: 'New Folder' }).click();
+   72 |       
+   73 |       // Check modal is visible
+   74 |       await expect(page.locator('text=Create New Folder')).toBeVisible();
+   75 |       
+   76 |       // Fill folder name
+   77 |       await page.locator('input[placeholder="Enter folder name"]').fill(TEST_FOLDER_NAME);
+   78 |       
+   79 |       // Select a color (click the second color option)
+   80 |       await page.locator('button[style*="background-color"]').nth(1).click();
+   81 |       
+   82 |       // Click create button
+   83 |       await page.locator('button', { hasText: 'Create Folder' }).click();
+   84 |       
+   85 |       // Modal should close
+   86 |       await expect(page.locator('text=Create New Folder')).not.toBeVisible();
+   87 |       
+   88 |       // New folder should appear in the list
+   89 |       await expect(page.locator('text=' + TEST_FOLDER_NAME)).toBeVisible();
+   90 |     });
+   91 |
+   92 |     test('can cancel folder creation', async ({ page }) => {
+   93 |       // Click new folder button
+   94 |       await page.locator('button', { hasText: 'New Folder' }).click();
+   95 |       
+   96 |       // Check modal is visible
+   97 |       await expect(page.locator('text=Create New Folder')).toBeVisible();
+   98 |       
+   99 |       // Click cancel button
+  100 |       await page.locator('button', { hasText: 'Cancel' }).click();
+  101 |       
+  102 |       // Modal should close
+  103 |       await expect(page.locator('text=Create New Folder')).not.toBeVisible();
+  104 |     });
+  105 |
+  106 |     test('can close folder modal with X button', async ({ page }) => {
+  107 |       // Click new folder button
+  108 |       await page.locator('button', { hasText: 'New Folder' }).click();
+  109 |       
+  110 |       // Check modal is visible
+  111 |       await expect(page.locator('text=Create New Folder')).toBeVisible();
+  112 |       
+  113 |       // Click X button to close
+  114 |       await page.getByRole('button', { name: 'close-create-folder-modal' }).click();
+  115 |
+  116 |       // Modal should close
 ```

@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       user.email,
       7 * 24 * 60 * 60 // 7 days
     );
+    console.log(`session user ${user.email}`)
 
     // Store session in database for audit
     await db.collection('sessions').insertOne({

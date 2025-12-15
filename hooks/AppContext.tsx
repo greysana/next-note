@@ -14,7 +14,7 @@ interface AppContextProps {
   getNotesByFolder: (folderId: string | null) => Note[];
 }
 
-const AppContext = createContext<AppContextProps | undefined>(undefined);
+export const AppContext = createContext<AppContextProps | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -24,47 +24,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const notesResponse = await fetch("/api/note");
+    fetchData();
+  }, []);
+  useEffect(() => {
+    if (isRefetch) {
+      fetchData();
+    }
+  }, [isRefetch]);
+  const fetchData = async () => {
+    try {
+      const notesResponse = await fetch("/api/note");
 
-        if (notesResponse.ok) {
-          const { notes: fetchedNotes } = await notesResponse.json();
-          const parsedNotes = fetchedNotes.map((note: Note) => ({
-            ...note,
-            id: note._id,
-            createdAt: new Date(note.createdAt),
-            updatedAt: new Date(note.updatedAt),
-          }));
+      if (notesResponse.ok) {
+        const { notes: fetchedNotes } = await notesResponse.json();
+        const parsedNotes = fetchedNotes.map((note: Note) => ({
+          ...note,
+          id: note._id,
+          createdAt: new Date(note.createdAt),
+          updatedAt: new Date(note.updatedAt),
+        }));
 
-          setNotes(parsedNotes);
-        }
+        setNotes(parsedNotes);
+      }
 
-        const foldersResponse = await fetch("/api/folders");
+      const foldersResponse = await fetch("/api/folders");
 
-        if (foldersResponse.ok) {
-          const { folders: fetchedFolders } = await foldersResponse.json();
-          const parsedFolders = fetchedFolders.map((folder: Folder) => ({
-            ...folder,
-            id: folder._id,
-            createdAt: new Date(folder?.createdAt ?? ""),
-          }));
-          setFolders(parsedFolders);
-          console.table(parsedFolders);
-        } else {
-          const defaultfolder = {
-            id: "default",
-            name: "general",
-            color: "#3B82F6",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            userId: "default-user",
-            notes: [],
-          };
-          setFolders([defaultfolder]);
-        }
-      } catch (error) {
-        console.error("failed to fetch data:", error);
+      if (foldersResponse.ok) {
+        const { folders: fetchedFolders } = await foldersResponse.json();
+        const parsedFolders = fetchedFolders.map((folder: Folder) => ({
+          ...folder,
+          id: folder._id,
+          createdAt: new Date(folder?.createdAt ?? ""),
+        }));
+        setFolders(parsedFolders);
+        console.table(parsedFolders);
+      } else {
         const defaultfolder = {
           id: "default",
           name: "general",
@@ -75,15 +69,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           notes: [],
         };
         setFolders([defaultfolder]);
-      } finally {
-        setIsRefetch(false);
       }
-    };
-    if (isRefetch) {
-      fetchData();
+    } catch (error) {
+      console.error("failed to fetch data:", error);
+      const defaultfolder = {
+        id: "default",
+        name: "general",
+        color: "#3B82F6",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "default-user",
+        notes: [],
+      };
+      setFolders([defaultfolder]);
+    } finally {
+      setIsRefetch(false);
     }
-  }, [isRefetch]);
-
+  };
   const duplicateNote = (id: string) => {
     const noteToClone = notes.find((n) => n._id === id);
     if (noteToClone) {

@@ -33,24 +33,25 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     setScheduledTasks(sampleScheduledTasks);
     setUnscheduledTasks(sampleUnscheduledTasks);
   }, []);
-  useEffect(() => {
-    localStorage.setItem("nextnote-mainTasks", JSON.stringify(mainTasks));
-  }, [mainTasks]);
-  useEffect(() => {
-    localStorage.setItem("nextnote-subTasks", JSON.stringify(subTasks));
-  }, [subTasks]);
-  useEffect(() => {
-    localStorage.setItem(
-      "nextnote-scheduledTasks",
-      JSON.stringify(scheduledTasks)
-    );
-  }, [scheduledTasks]);
-  useEffect(() => {
-    localStorage.setItem(
-      "nextnote-unscheduledTasks",
-      JSON.stringify(unscheduledTasks)
-    );
-  }, [unscheduledTasks]);
+  // useEffect(() => {
+  //   localStorage.setItem("nextnote-mainTasks", JSON.stringify(mainTasks));
+  // }, [mainTasks]);
+  // useEffect(() => {
+  //   localStorage.setItem("nextnote-subTasks", JSON.stringify(subTasks));
+  // }, [subTasks]);
+  // useEffect(() => {
+    
+  //   localStorage.setItem(
+  //     "nextnote-scheduledTasks",
+  //     JSON.stringify(scheduledTasks)
+  //   );
+  // }, [scheduledTasks]);
+  // useEffect(() => {
+  //   localStorage.setItem(
+  //     "nextnote-unscheduledTasks",
+  //     JSON.stringify(unscheduledTasks)
+  //   );
+  // }, [unscheduledTasks]);
 
   const addMainTask = (
     taskData: Omit<MainTask, "id" | "createdAt" | "updatedAt">

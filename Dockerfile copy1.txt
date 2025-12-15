@@ -1,0 +1,58 @@
+# Dependencies stage
+FROM node:18-alpine AS deps
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production --ignore-scripts
+
+# Builder stage
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+# Build-time environment variables
+ARG MONGODB_URI
+ARG NEXTAUTH_SECRET
+ARG NEXTAUTH_URL
+ARG NEXT_PUBLIC_SITE_URL
+ARG RESEND_API_KEY
+ARG OPENROUTER_API_KEY
+ARG OPENROUTER_MODEL
+ARG REDIS_URL
+
+ENV MONGODB_URI=$MONGODB_URI
+ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+ENV NEXTAUTH_URL=$NEXTAUTH_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV RESEND_API_KEY=$RESEND_API_KEY
+ENV OPENROUTER_API_KEY=$OPENROUTER_API_KEY
+ENV OPENROUTER_MODEL=$OPENROUTER_MODEL
+ENV REDIS_URL=$REDIS_URL
+
+RUN npm run build
+
+# Runner stage
+FROM node:18-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+USER nextjs
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

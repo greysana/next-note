@@ -1,12 +1,12 @@
-// app/(auth)/login/page.tsx
 "use client";
 
 import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/AuthContext";
+import { useAppContext } from "@/hooks/AppContext";
 
-async function loginAction(prevState: unknown, formData: FormData) {
+export async function loginAction(prevState: unknown, formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -25,25 +25,29 @@ async function loginAction(prevState: unknown, formData: FormData) {
     }
 
     return { success: true, data };
-  } catch (error) {
-    console.error(error);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) {
+    // console.error(error);
 
     return { error: "Network error. Please try again.", success: false };
   }
 }
-
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
   const [state, formAction, isPending] = useActionState(loginAction, null);
-
+  const { setIsRefetch } = useAppContext();
   // Redirect on success
   useEffect(() => {
-    if (state?.success) {
-      refreshUser();
+    const getUser = async () => {
+      await refreshUser();
+      setIsRefetch(true);
       router.push("/");
+    };
+    if (state?.success === true) {
+      getUser();
     }
-  }, [state?.success]);
+  }, [state?.success, refreshUser, router, setIsRefetch]);
   return (
     <div>
       <h2 className="text-2xl font-semibold text-gray-900 mb-6">
@@ -56,7 +60,7 @@ export default function LoginPage() {
             htmlFor="email"
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Email address
+            Email Address
           </label>
           <input
             id="email"

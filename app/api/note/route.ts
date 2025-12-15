@@ -49,6 +49,7 @@ export async function GET(request: Request) {
     );
     const { notes, total } = await getCachedNotes();
 
+    console.log(`current user ${user.email}`);
     // console.table(notes);
     return NextResponse.json(
       {
@@ -58,11 +59,6 @@ export async function GET(request: Request) {
           limit,
           total,
           totalPages: Math.ceil(total / limit),
-        },
-      },
-      {
-        headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
         },
       }
     );

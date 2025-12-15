@@ -37,14 +37,18 @@ export async function GET(
 
     const getCachedNote = unstable_cache(
       async (noteId: string, userId: string): Promise<Note | null> => {
+        console.log(
+          `🔴 DATABASE HIT - Fetching note ${noteId} for user ${userId}`
+        );
+
         const db = await getDatabase();
 
         const noteDoc = await db.collection<NoteDocument>("notes").findOne({
           _id: new ObjectId(noteId),
-          userId: new ObjectId(userId), // Convert to ObjectId
+          userId: new ObjectId(userId),
         });
 
-        return noteDoc ? toNote(noteDoc) : null; // Map to client type
+        return noteDoc ? toNote(noteDoc) : null;
       },
       [`note-${id}-${user.userId}`],
       {
@@ -53,13 +57,16 @@ export async function GET(
       }
     );
 
+    // console.log(
+    //   `🟢 Attempting to get note ${id} (will use cache if available)`
+    // );
     const note = await getCachedNote(id, user.userId);
-
+    // console.log(`✅ Note retrieved: ${note ? "found" : "not found"}`);
     if (!note) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ note });
+    return NextResponse.json({ ...note });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json(

@@ -6,51 +6,62 @@
 # Error details
 
 ```
-Error: locator.click: Test timeout of 30000ms exceeded.
-Call log:
-  - waiting for getByRole('button', { name: 'close-create-folder-modal' })
+Error: Timed out 5000ms waiting for expect(locator).toContainText(expected)
 
-    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:114:77
+Locator: locator('h1')
+Expected string: "My Notes"
+Received string: "NEXT NOTE"
+Call log:
+  - expect.toContainText with timeout 5000ms
+  - waiting for locator('h1')
+    6 × locator resolved to <h1 class="text-3xl font-bold text-gray-900">NEXT NOTE</h1>
+      - unexpected value "NEXT NOTE"
+
+    at C:\Users\WEBDEV-MAHIPE\Desktop\2025\nextnote\tests\e2e\basic.spec.ts:16:38
 ```
 
 # Page snapshot
 
 ```yaml
-- heading "My Notes" [level=1]
-- paragraph: Organize your thoughts by folders
-- button "Grid View"
-- button "List View"
-- textbox "Search notes..."
-- button "New Folder"
-- heading "General" [level=2]
-- paragraph: 0 notes
-- link "Add Note":
-  - /url: /notes/new?folderId=default
-- paragraph: No notes in this folder yet
-- link "Create First Note":
-  - /url: /notes/new?folderId=default
-- heading "Create New Folder" [level=3]
-- button
-- text: Folder Name
-- textbox "Enter folder name"
-- text: Color
-- button "#3B82F6"
-- button "#EF4444"
-- button "#10B981"
-- button "#F59E0B"
-- button "#8B5CF6"
-- button "#EC4899"
-- button "Cancel"
-- button "Create Folder"
-- alert
+- heading "NEXT NOTE" [level=1]
+- paragraph: Secure Authentication
+- heading "Sign in to your account" [level=2]
+- text: Email address
+- textbox "Email address"
+- text: Password
+- textbox "Password"
+- checkbox "Remember me"
+- text: Remember me
+- link "Forgot password?":
+  - /url: /request-password-reset
+- button "Sign in"
+- paragraph:
+  - text: Don't have an account?
+  - link "Sign up":
+    - /url: /register
+- alert: NEXT NOTE
 ```
 
 # Test source
 
 ```ts
+   1 | import { test, expect } from '@playwright/test';
+   2 |
+   3 | // Test data constants
+   4 | const TEST_FOLDER_NAME = 'Test Folder';
+   5 | const TEST_NOTE_TITLE = 'Test Note Title';
+   6 | const TEST_NOTE_CONTENT = 'This is test note content for automated testing.';
+   7 | // const UPDATED_NOTE_TITLE = 'Updated Test Note';
+   8 | // const UPDATED_NOTE_CONTENT = 'This is updated test note content.';
+   9 |
+   10 | test.describe('Notes Application', () => {
+   11 |   
+   12 |   test.beforeEach(async ({ page }) => {
+   13 |     // Navigate to the notes page before each test
    14 |     await page.goto('/notes');
    15 |     // Wait for the page to be fully loaded
-   16 |     await expect(page.locator('h1')).toContainText('My Notes');
+>  16 |     await expect(page.locator('h1')).toContainText('My Notes');
+      |                                      ^ Error: Timed out 5000ms waiting for expect(locator).toContainText(expected)
    17 |   });
    18 |
    19 |   test.describe('Notes List Page (/notes)', () => {
@@ -148,106 +159,7 @@ Call log:
   111 |       await expect(page.locator('text=Create New Folder')).toBeVisible();
   112 |       
   113 |       // Click X button to close
-> 114 |       await page.getByRole('button', { name: 'close-create-folder-modal' }).click();
-      |                                                                             ^ Error: locator.click: Test timeout of 30000ms exceeded.
+  114 |       await page.getByRole('button', { name: 'close-create-folder-modal' }).click();
   115 |
   116 |       // Modal should close
-  117 |       await expect(page.locator('text=Create New Folder')).not.toBeVisible();
-  118 |     });
-  119 |
-  120 |     test('folder actions menu works', async ({ page }) => {
-  121 |       // First create a folder if none exists (skip default folder)
-  122 |       const folderMenus = page.getByRole('button', { name: 'folder-actions-button' });
-  123 |       
-  124 |       if (await folderMenus.count() > 0) {
-  125 |         // Click the first folder menu (three dots)
-  126 |         await folderMenus.first().click();
-  127 |         
-  128 |         // Check menu items are visible
-  129 |         await expect(page.locator('text=Edit')).toBeVisible();
-  130 |         await expect(page.locator('text=Duplicate')).toBeVisible();
-  131 |         await expect(page.locator('text=Delete')).toBeVisible();
-  132 |         
-  133 |         // Click outside to close menu
-  134 |         await page.click('body');
-  135 |         await expect(page.locator('text=Edit')).not.toBeVisible();
-  136 |       }
-  137 |     });
-  138 |
-  139 |     test('add note button navigates correctly', async ({ page }) => {
-  140 |       // Look for "Add Note" or "Create First Note" buttons
-  141 |       const addNoteButton = page.locator('text=Add Note').or(page.locator('text=Create First Note')).first();
-  142 |       
-  143 |       if (await addNoteButton.isVisible()) {
-  144 |         await addNoteButton.click();
-  145 |         
-  146 |         // Should navigate to new note page
-  147 |         await expect(page).toHaveURL(/\/notes\/new/);
-  148 |       }
-  149 |     });
-  150 |   });
-  151 |
-  152 |   test.describe('Note Detail Page (/notes/[id])', () => {
-  153 |     
-  154 |     test('can access new note page', async ({ page }) => {
-  155 |       // Navigate directly to new note page
-  156 |       await page.goto('/notes/new');
-  157 |       
-  158 |       // Check key elements are present
-  159 |       await expect(page.locator('text=Back to Notes')).toBeVisible();
-  160 |       await expect(page.locator('input[placeholder="Note title..."]')).toBeVisible();
-  161 |       await expect(page.locator('button', { hasText: 'Create Note' })).toBeVisible();
-  162 |       
-  163 |       // Check folder selector is present
-  164 |       await expect(page.locator('select')).toBeVisible();
-  165 |     });
-  166 |
-  167 |     test('can create a new note', async ({ page }) => {
-  168 |       await page.goto('/notes/new');
-  169 |       
-  170 |       // Fill in note details
-  171 |       await page.locator('input[placeholder="Note title..."]').fill(TEST_NOTE_TITLE);
-  172 |       
-  173 |       // Note: The RichTextEditor might need special handling depending on implementation
-  174 |       // For now, we'll assume it has a contenteditable area or textarea
-  175 |       const contentEditor = page.locator('[contenteditable="true"]').or(page.locator('textarea')).first();
-  176 |       if (await contentEditor.isVisible()) {
-  177 |         await contentEditor.fill(TEST_NOTE_CONTENT);
-  178 |       }
-  179 |       
-  180 |       // Select folder (keep default for simplicity)
-  181 |       const folderSelect = page.locator('select');
-  182 |       await folderSelect.selectOption({ index: 0 });
-  183 |       
-  184 |       // Save the note
-  185 |       await page.locator('button', { hasText: 'Create Note' }).click();
-  186 |       
-  187 |       // Should redirect to notes list
-  188 |       await expect(page).toHaveURL('/notes');
-  189 |     });
-  190 |
-  191 |     test('back button works correctly', async ({ page }) => {
-  192 |       await page.goto('/notes/new');
-  193 |       
-  194 |       // Click back button
-  195 |       await page.locator('text=Back to Notes').click();
-  196 |       
-  197 |       // Should return to notes list
-  198 |       await expect(page).toHaveURL('/notes');
-  199 |     });
-  200 |
-  201 |     test('folder selection works', async ({ page }) => {
-  202 |       await page.goto('/notes/new');
-  203 |       
-  204 |       const folderSelect = page.locator('select');
-  205 |       
-  206 |       // Get all options
-  207 |       const options = await folderSelect.locator('option').all();
-  208 |       
-  209 |       if (options.length > 1) {
-  210 |         // Select second option
-  211 |         await folderSelect.selectOption({ index: 1 });
-  212 |         
-  213 |         // Verify selection
-  214 |         const selectedValue = await folderSelect.inputValue();
 ```

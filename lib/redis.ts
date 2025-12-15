@@ -7,12 +7,10 @@ const redisClient = createClient({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 redisClient.on('error', (err: any) => console.error('Redis Client Error', err));
 
-let isConnected = false;
-
 export async function getRedisClient() {
-  if (!isConnected) {
+  // Check if already connected or connecting
+  if (!redisClient.isOpen) {
     await redisClient.connect();
-    isConnected = true;
   }
   return redisClient;
 }
