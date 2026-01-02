@@ -20,6 +20,8 @@ dist
 /test_results
 /playwright-report
 /redis
+reference.txt
+
 # Logs
 logs/
 *.log

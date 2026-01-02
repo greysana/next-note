@@ -21,7 +21,7 @@
 /test-results
 /test_results
 /redis
-
+reference.txt
 # Logs
 logs/
 *.log
