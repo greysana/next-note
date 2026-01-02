@@ -1,30 +1,35 @@
 import { getDatabase } from "@/db/mongodb";
-import { checkRateLimit } from "@/lib/auth/redis-auth";
 import { requireAuth } from "@/lib/auth/session";
 import { CACHE_TAGS, invalidateFoldersCache } from "@/lib/cache";
 import { toFolders } from "@/lib/mappers/folder.mapper";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 import { FolderDocument } from "@/types/database.types";
 import { Folder } from "@/types/types";
 import { ObjectId } from "mongodb";
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import z from "zod";
 
-export async function GET(request: Request) {
+const createFolderSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  color: z.string().optional(),
+  userId: z.string().nullable().optional(),
+});
+async function getFoldersHandler(request: Request): Promise<NextResponse> {
+  const { searchParams } = new URL(request.url);
+
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const skip = (page - 1) * limit;
+  const user = await requireAuth();
   try {
-    const { searchParams } = new URL(request.url);
-
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
-    const user = await requireAuth();
-    // Rate limiting using user's email
-    const rateLimit = await checkRateLimit(user.email, "get_folder", 100, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
     const getCachedFolders = unstable_cache(
       async (): Promise<{ folders: Folder[]; total: number }> => {
         const db = await getDatabase();
@@ -50,7 +55,7 @@ export async function GET(request: Request) {
     );
     // console.table(folders);
     const { folders, total } = await getCachedFolders();
-
+    invalidateFoldersCache();
     // console.table(folders);
     return NextResponse.json(
       {
@@ -69,14 +74,10 @@ export async function GET(request: Request) {
       }
     );
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("GET folder error:", error);
-    console.log(error);
+    logError(error as Error, "failed to fetch folders", {
+      userId: user.userId,
+    });
+
     return NextResponse.json(
       { error: "Failed to fetch folders" },
       { status: 500 }
@@ -84,19 +85,9 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function createFolderHandler(request: Request): Promise<NextResponse> {
+  const user = await requireAuth();
   try {
-    const user = await requireAuth();
-
-    const rateLimit = await checkRateLimit(user.email, "get_folder", 100, 60);
-
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-
     const body = await request.json();
     const db = await getDatabase();
 
@@ -118,10 +109,32 @@ export async function POST(request: Request) {
       id: result.insertedId.toString(),
     });
   } catch (error) {
-    console.log(error);
+    logError(error as Error, "failed to fetch notes", { userId: user.userId });
     return NextResponse.json(
       { error: "Failed to create folder" },
       { status: 500 }
     );
   }
 }
+
+export const GET = compose(
+  withErrorHandling(),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "get_folders",
+  })
+)(getFoldersHandler);
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: createFolderSchema }),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "create_folder",
+  })
+)(createFolderHandler);

@@ -43,7 +43,7 @@ async function registerAction(prevState: unknown, formData: FormData) {
 export default function RegisterPage() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(registerAction, null);
-
+  console.log(state);
   // Redirect to verify email page on success
   if (state?.success) {
     setTimeout(() => {

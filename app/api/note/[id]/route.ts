@@ -1,6 +1,4 @@
-// app/api/notes/[id]/route.ts
 import { getDatabase } from "@/db/mongodb";
-import { checkRateLimit } from "@/lib/auth/redis-auth";
 import { requireAuth } from "@/lib/auth/session";
 import {
   CACHE_TAGS,
@@ -9,38 +7,50 @@ import {
 } from "@/lib/cache";
 import { isValidObjectId } from "@/lib/helper/helpers";
 import { toNote } from "@/lib/mappers/note.mapper";
+import {
+  compose,
+  logger,
+  RouteContext,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 import { NoteDocument } from "@/types/database.types";
 import { Note } from "@/types/types";
 import { ObjectId } from "mongodb";
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import z from "zod";
 
-export async function GET(
+const noteIdSchema = z.object({
+  id: z.string().refine((id) => isValidObjectId(id), {
+    message: "Invalid note ID format",
+  }),
+});
+const updateNoteSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  content: z.string().optional(),
+  folderId: z.string().nullable().optional(),
+});
+
+async function getNoteHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const user = await requireAuth();
-    const { id } = await params;
+  context: RouteContext
+): Promise<NextResponse> {
+  const user = await requireAuth();
+  const { id } = await context.params;
 
-    if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 });
-    }
-
-    const rateLimit = await checkRateLimit(user.email, "get_note", 100, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-
-    const getCachedNote = unstable_cache(
-      async (noteId: string, userId: string): Promise<Note | null> => {
-        console.log(
-          `🔴 DATABASE HIT - Fetching note ${noteId} for user ${userId}`
-        );
-
+  const getCachedNote = unstable_cache(
+    async (noteId: string, userId: string): Promise<Note | null> => {
+      if (process.env.NODE_ENV === "development") {
+        logger.debug("Cache miss - fetching note from database", {
+          noteId,
+          userId,
+        });
+      }
+      try {
         const db = await getDatabase();
 
         const noteDoc = await db.collection<NoteDocument>("notes").findOne({
@@ -49,59 +59,43 @@ export async function GET(
         });
 
         return noteDoc ? toNote(noteDoc) : null;
-      },
-      [`note-${id}-${user.userId}`],
-      {
-        tags: [CACHE_TAGS.note(id)],
-        revalidate: 60,
+      } catch (error) {
+        logError(error as Error, "Database query failed", {
+          operation: "findOne",
+          collection: "notes",
+          noteId,
+          userId,
+        });
+        throw error;
       }
-    );
-
-    // console.log(
-    //   `🟢 Attempting to get note ${id} (will use cache if available)`
-    // );
-    const note = await getCachedNote(id, user.userId);
-    // console.log(`✅ Note retrieved: ${note ? "found" : "not found"}`);
-    if (!note) {
-      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    },
+    [`note-${id}-${user.userId}`],
+    {
+      tags: [CACHE_TAGS.note(id)],
+      revalidate: 60,
     }
+  );
 
-    return NextResponse.json({ ...note });
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("GET note error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch note" },
-      { status: 500 }
-    );
+  const note = await getCachedNote(id, user.userId);
+  if (!note) {
+    logger.warn("Note not found", {
+      noteId: id,
+      userId: user.userId,
+    });
+    return NextResponse.json({ error: "Note not found" }, { status: 404 });
   }
+
+  return NextResponse.json({ ...note });
 }
 
-export async function PUT(
+async function updateNoteHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  context: RouteContext
+): Promise<NextResponse> {
+  const { id } = await context.params;
+  const user = await requireAuth();
+
   try {
-    const { id } = await params;
-    const user = await requireAuth();
-
-    if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 });
-    }
-
-    const rateLimit = await checkRateLimit(user.email, "update_note", 50, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-
     const db = await getDatabase();
     const body = await request.json();
 
@@ -132,46 +126,25 @@ export async function PUT(
 
     invalidateNotesCache();
     invalidateNoteCache(id);
-
     return NextResponse.json({
       success: true,
       modified: result.modifiedCount > 0,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("PUT note error:", error);
-    return NextResponse.json(
-      { error: "Failed to update note" },
-      { status: 500 }
-    );
+    logError(error as Error, "Failed to update note", {
+      noteId: id,
+      userId: user.userId,
+    });
+    throw error;
   }
 }
-
-export async function DELETE(
+async function deleteNoteHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  context: RouteContext
+): Promise<NextResponse> {
+  const user = await requireAuth();
+  const { id } = await context.params;
   try {
-    const user = await requireAuth();
-    const { id } = await params;
-
-    if (!isValidObjectId(id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 });
-    }
-
-    const rateLimit = await checkRateLimit(user.email, "delete_note", 30, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-
     const db = await getDatabase();
     const result = await db.collection<NoteDocument>("notes").deleteOne({
       _id: new ObjectId(id),
@@ -190,16 +163,50 @@ export async function DELETE(
       deleted: result.deletedCount > 0,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("DELETE note error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete note" },
-      { status: 500 }
-    );
+    logError(error as Error, "Failed to delete note", {
+      noteId: id,
+      userId: user.userId,
+    });
+    throw error;
   }
 }
+
+export const GET = compose(
+  withErrorHandling(),
+  // withLogging(),
+  withValidation({ params: noteIdSchema }),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "get_note",
+  })
+)(getNoteHandler);
+
+export const PUT = compose(
+  withErrorHandling(),
+  withLogging(),
+  // withSanitization(),// this affects the styling of the rich text editor
+  withValidation({
+    params: noteIdSchema,
+    body: updateNoteSchema,
+  }),
+  withRateLimit({
+    max: 50,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "update_note",
+  })
+)(updateNoteHandler);
+
+export const DELETE = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ params: noteIdSchema }),
+  withRateLimit({
+    max: 30,
+    windowMs: 6000,
+    useUserIdentifier: true,
+    action: "delete_note",
+  })
+)(deleteNoteHandler);

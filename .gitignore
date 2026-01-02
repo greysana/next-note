@@ -16,7 +16,15 @@
 /test-results 
 # Production
 /build
+/documentation
+/backup
+/test-results
+/test_results
+/redis
 
+# Logs
+logs/
+*.log
 # Misc
 .DS_Store
 *.pem

@@ -1,36 +1,35 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/db/mongodb';
-import { createOTP, checkRateLimit } from '@/lib/auth/redis-auth';
-import bcrypt from 'bcryptjs';
+import { NextResponse } from "next/server";
+import { getDatabase } from "@/db/mongodb";
+import { createOTP } from "@/lib/auth/redis-auth";
+import bcrypt from "bcryptjs";
+import z from "zod";
+import { logError } from "@/lib/middlewares/logger-utils";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
 
-export async function POST(request: Request) {
+const registerSchema = z.object({
+  email: z
+    .email({ message: "Invalid email" })
+    .nonempty({ message: "Email is required" }),
+  password: z.string().nonempty({ message: "Password is required" }),
+  name: z.string().nonempty({ message: "Name is required" }),
+});
+async function registerHandler(request: Request): Promise<NextResponse> {
+  const body = await request.json();
+  const { email, password, name } = body;
   try {
-    const body = await request.json();
-    const { email, password, name } = body;
-
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: 'Email, password, and name are required' },
-        { status: 400 }
-      );
-    }
-
-    // Rate limiting
-    const rateLimit = await checkRateLimit(email, 'register', 3, 60 * 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many registration attempts. Please try again later.' },
-        { status: 429 }
-      );
-    }
-
     const db = await getDatabase();
 
     // Check if user exists
-    const existingUser = await db.collection('users').findOne({ email });
+    const existingUser = await db.collection("users").findOne({ email });
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists' },
+        { error: "User already exists" },
         { status: 409 }
       );
     }
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const result = await db.collection('users').insertOne({
+    const result = await db.collection("users").insertOne({
       email,
       password: hashedPassword,
       name,
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
     });
 
     // Create OTP for email verification
-    const otp = await createOTP(email, 'email_verification', 15 * 60);
+    const otp = await createOTP(email, "email_verification", 15 * 60);
 
     // TODO: Send OTP via email
     console.log(`Email verification OTP for ${email}: ${otp}`);
@@ -57,13 +56,22 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       userId: result.insertedId,
-      message: 'Registration successful. Please verify your email.',
+      message: "Registration successful. Please verify your email.",
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    return NextResponse.json(
-      { error: 'Failed to register' },
-      { status: 500 }
-    );
+    logError(error as Error, "registration failed", { email });
+    throw error;
   }
 }
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: registerSchema }),
+  withRateLimit({
+    max: 5,
+    windowMs: 60000,
+    useUserIdentifier: false,
+    action: "register",
+  })
+)(registerHandler);

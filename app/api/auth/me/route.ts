@@ -2,27 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDatabase } from "@/db/mongodb";
 import { ObjectId } from "mongodb";
-import { checkRateLimit } from "@/lib/auth/redis-auth";
+import { compose, withErrorHandling, withRateLimit } from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 
-export async function GET() {
+async function getUserHandler(): Promise<NextResponse> {
+  const currentUser = await getCurrentUser();
   try {
-    const currentUser = await getCurrentUser();
-
     if (!currentUser) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const rateLimit = await checkRateLimit(
-      currentUser.email,
-      "auth_me",
-      100,
-      60
-    );
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
     }
     // Fetch full user details from database
     const db = await getDatabase();
@@ -44,7 +31,19 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Get current user error:", error);
-    return NextResponse.json({ error: "Failed to get user" }, { status: 500 });
+    logError(error as Error, "getting user profile failed", {
+      email: currentUser?.email,
+    });
+    throw error;
   }
 }
+
+export const GET = compose(
+  withErrorHandling(),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "auth_me",
+  })
+)(getUserHandler);

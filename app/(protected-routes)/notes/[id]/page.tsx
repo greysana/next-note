@@ -52,7 +52,6 @@ export default function NoteDetailPage({
     const getNote = async () => {
       const note = await noteService.getNoteById(id);
 
-      console.table(notes);
       if (note) {
         setCurrentNote(note);
         setTitle(note.title ?? "");
@@ -69,8 +68,8 @@ export default function NoteDetailPage({
     } else {
       getNote();
     }
-  }, [id, notes, setCurrentNote, isNewNote, folderId]);
-  console.log(content);
+  }, [notes, id, setCurrentNote, isNewNote, folderId]);
+  // console.log(content);
   const handleSave = async () => {
     setIsSaving(true);
     console.table(params);
@@ -95,6 +94,8 @@ export default function NoteDetailPage({
           folderId: selectedFolderId,
         });
         setLastSaved(new Date());
+        console.table("updating note");
+
         console.table(note);
       }
     } catch (error) {

@@ -1,26 +1,57 @@
 import { getDatabase } from "@/db/mongodb";
+import { requireAuth } from "@/lib/auth/session";
+import { invalidateFolderCache, invalidateFoldersCache } from "@/lib/cache";
+import { isValidObjectId } from "@/lib/helper/helpers";
+import {
+  compose,
+  logger,
+  RouteContext,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withSanitization,
+  withValidation,
+} from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 import { ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
+import z from "zod";
 
-export async function GET(
+const folderIdSchema = z.object({
+  id: z.string().refine((id) => isValidObjectId(id), {
+    message: "Invalid Folder ID format",
+  }),
+});
+const updateFolderSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  color: z.string().optional(),
+  userId: z.string().nullable().optional(),
+});
+
+async function getFolderHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+  context: RouteContext
+): Promise<NextResponse> {
+  const { id } = await context.params;
   try {
-    const { id } = await params;
-
     const db = await getDatabase();
     const folder = await db.collection("folders").findOne({
       _id: new ObjectId(id),
     });
 
     if (!folder) {
-      return NextResponse.json({ error: "folder not Found" }, { status: 404 });
+      logger.warn("Note not found", {
+        folderId: id,
+      });
+      return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
     // console.table(folder);
+
     return NextResponse.json({ folder });
   } catch (error) {
-    console.error(error);
+    logError(error as Error, "Failed to fetch folder", {
+      folderId: id,
+    });
     return NextResponse.json(
       { error: "Failed to fetch folder" },
       { status: 500 }
@@ -28,13 +59,14 @@ export async function GET(
   }
 }
 
-export async function PUT(
+async function updateFolderHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+  context: RouteContext
+): Promise<NextResponse> {
+  const { id } = await context.params;
+  const user = await requireAuth();
 
+  try {
     const db = await getDatabase();
 
     const body = await request.json();
@@ -56,27 +88,29 @@ export async function PUT(
     // console.table(result);
     // console.table(body);
     // console.table(request);
-
+    invalidateFoldersCache();
+    invalidateFolderCache(id);
     return NextResponse.json({
       success: true,
       modified: result.modifiedCount > 0,
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Failed to update folder" },
-      { status: 500 }
-    );
+    logError(error as Error, "Failed to update note", {
+      folderId: id,
+      userId: user.userId,
+    });
+    throw error;
   }
 }
 
-export async function DELETE(
+async function deleteFolderHandler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+  context: RouteContext
+): Promise<NextResponse> {
+  const { id } = await context.params;
+  const user = await requireAuth();
 
+  try {
     const db = await getDatabase();
     const result = await db.collection("folders").deleteOne({
       _id: new ObjectId(id),
@@ -85,16 +119,61 @@ export async function DELETE(
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "folder not Found" }, { status: 404 });
     }
+    invalidateFoldersCache();
+    invalidateFolderCache(id);
     // console.table(result);
     return NextResponse.json({
       success: true,
       deleted: result.deletedCount > 0,
     });
   } catch (error) {
-    console.error(error);
+    logError(error as Error, "Failed to delete note", {
+      noteId: id,
+      userId: user.userId,
+    });
     return NextResponse.json(
       { error: "Failed to delete folder" },
       { status: 500 }
     );
   }
 }
+
+export const GET = compose(
+  withErrorHandling(),
+  // withLogging(),
+  withValidation({ params: folderIdSchema, body: updateFolderSchema }),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "get_folder",
+  })
+)(getFolderHandler);
+
+export const PUT = compose(
+  withErrorHandling(),
+  withLogging(),
+  withSanitization(),
+  withValidation({
+    params: folderIdSchema,
+    body: updateFolderSchema,
+  }),
+  withRateLimit({
+    max: 50,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "update_folder",
+  })
+)(updateFolderHandler);
+
+export const DELETE = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ params: folderIdSchema }),
+  withRateLimit({
+    max: 30,
+    windowMs: 6000,
+    useUserIdentifier: true,
+    action: "delete_folder",
+  })
+)(deleteFolderHandler);

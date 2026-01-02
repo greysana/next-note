@@ -2,25 +2,31 @@ import { getDatabase } from "@/db/mongodb";
 import { NextResponse } from "next/server";
 import { CACHE_TAGS, invalidateNotesCache } from "@/lib/cache";
 import { unstable_cache } from "next/cache";
-import { checkRateLimit } from "@/lib/auth/redis-auth";
 import { requireAuth } from "@/lib/auth/session";
 import { Note } from "@/types/types";
 import { NoteDocument } from "@/types/database.types";
 import { ObjectId } from "mongodb";
 import { toNotes } from "@/lib/mappers/note.mapper";
+import z from "zod";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 
-export async function GET(request: Request) {
+const createNoteSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  content: z.string().optional(),
+  folderId: z.string().nullable().optional(),
+  userId: z.string(),
+});
+async function getNotesHandler(request: Request): Promise<NextResponse> {
+  const { searchParams } = new URL(request.url);
+  const user = await requireAuth();
   try {
-    const { searchParams } = new URL(request.url);
-    const user = await requireAuth();
-    const rateLimit = await checkRateLimit(user.email, "get_note", 100, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "100");
     const skip = (page - 1) * limit;
@@ -49,45 +55,26 @@ export async function GET(request: Request) {
     );
     const { notes, total } = await getCachedNotes();
 
-    console.log(`current user ${user.email}`);
     // console.table(notes);
-    return NextResponse.json(
-      {
-        notes,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      }
-    );
+    return NextResponse.json({
+      notes,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("GET note error:", error);
-    console.log(error);
-    return NextResponse.json(
-      { error: "Failed to fetch notes" },
-      { status: 500 }
-    );
+    logError(error as Error, "failed to fetch notes", { userId: user.userId });
+    throw error;
   }
 }
 
-export async function POST(request: Request) {
+async function createNoteHandler(request: Request): Promise<NextResponse> {
+  const user = await requireAuth();
+
   try {
-    const user = await requireAuth();
-    const rateLimit = await checkRateLimit(user.email, "get_note", 100, 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
     const body = await request.json();
 
     if (!body.title || !body.content) {
@@ -117,17 +104,33 @@ export async function POST(request: Request) {
       _id: result.insertedId.toString(),
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    console.error("GET note error:", error);
-    console.log(error);
-    return NextResponse.json(
-      { error: "Failed to create note" },
-      { status: 500 }
-    );
+    logError(error as Error, "Failed to create the note", {
+      userId: user.userId,
+    });
+    throw error;
   }
 }
+
+export const GET = compose(
+  withErrorHandling(),
+  // withLogging(),
+  // withValidation({ params: createNoteSchema }),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "get_notes",
+  })
+)(getNotesHandler);
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: createNoteSchema }),
+  withRateLimit({
+    max: 100,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "create_note",
+  })
+)(createNoteHandler);

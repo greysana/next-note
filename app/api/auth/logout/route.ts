@@ -1,10 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { deleteSession } from "@/lib/auth/redis-auth";
 import { getDatabase } from "@/db/mongodb";
 import { invalidateAllCache } from "@/lib/cache";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+} from "@/lib/middlewares";
+import { logError } from "@/lib/middlewares/logger-utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function POST(request: any) {
+async function logoutHandler(request: NextRequest): Promise<NextResponse> {
   try {
     const sessionToken = request.cookies.get("session_token")?.value;
 
@@ -21,7 +28,18 @@ export async function POST(request: any) {
 
     return response;
   } catch (error) {
-    console.error("Logout error:", error);
-    return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
+    logError(error as Error, "logout failed");
+    throw error;
   }
 }
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withRateLimit({
+    max: 5,
+    windowMs: 60000,
+    useUserIdentifier: false,
+    action: "logout",
+  })
+)(logoutHandler);

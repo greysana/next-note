@@ -1,35 +1,34 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/db/mongodb';
-import { createSession, checkRateLimit } from '@/lib/auth/redis-auth';
-import bcrypt from 'bcryptjs';
+import { NextResponse } from "next/server";
+import { getDatabase } from "@/db/mongodb";
+import { createSession } from "@/lib/auth/redis-auth";
+import bcrypt from "bcryptjs";
+import z from "zod";
+import { logError } from "@/lib/middlewares/logger-utils";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
 
-export async function POST(request: Request) {
+const loginSchema = z.object({
+  email: z
+    .email({ message: "Invalid email" })
+    .nonempty({ message: "Email is required" }),
+  password: z.string().nonempty({ message: "Password is required" }),
+});
+async function loginHandler(request: Request): Promise<NextResponse> {
+  const body = await request.json();
+  const { email, password } = body;
+
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      );
-    }
-
-    // Rate limiting
-    const rateLimit = await checkRateLimit(email, 'login', 20, 15 * 60);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Too many login attempts. Please try again later.' },
-        { status: 429 }
-      );
-    }
-
     const db = await getDatabase();
-    const user = await db.collection('users').findOne({ email });
+    const user = await db.collection("users").findOne({ email });
 
     if (!user || !user.password) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -49,10 +48,10 @@ export async function POST(request: Request) {
       user.email,
       7 * 24 * 60 * 60 // 7 days
     );
-    console.log(`session user ${user.email}`)
+    console.log(`session user ${user.email}`);
 
     // Store session in database for audit
-    await db.collection('sessions').insertOne({
+    await db.collection("sessions").insertOne({
       userId: user._id,
       sessionToken,
       createdAt: new Date(),
@@ -70,20 +69,28 @@ export async function POST(request: Request) {
     });
 
     // Set HTTP-only cookie
-    response.cookies.set('session_token', sessionToken, {
+    response.cookies.set("session_token", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
+      path: "/",
     });
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Failed to login' },
-      { status: 500 }
-    );
+    logError(error as Error, "Login failed");
+    throw error;
   }
 }
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: loginSchema }),
+  withRateLimit({
+    max: 5,
+    windowMs: 60000,
+    useUserIdentifier: false,
+    action: "login",
+  })
+)(loginHandler);

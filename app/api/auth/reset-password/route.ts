@@ -1,26 +1,39 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/db/mongodb';
-import { verifyToken, markTokenAsUsed } from '@/lib/auth/redis-auth';
-import bcrypt from 'bcryptjs';
-import { ObjectId } from 'mongodb';
+import { NextResponse } from "next/server";
+import { getDatabase } from "@/db/mongodb";
+import { verifyToken, markTokenAsUsed } from "@/lib/auth/redis-auth";
+import bcrypt from "bcryptjs";
+import { ObjectId } from "mongodb";
+import z from "zod";
+import { logError } from "@/lib/middlewares/logger-utils";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
 
-export async function POST(request: Request) {
+const resetPasswordSchema = z.object({
+  password: z.string().nonempty({ message: "Password is required" }),
+  token: z.string().nonempty({ message: "Token is required" }),
+});
+async function resetPasswordHandler(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json();
     const { token, password } = body;
 
     if (!token || !password) {
       return NextResponse.json(
-        { error: 'Token and password are required' },
+        { error: "Token and password are required" },
         { status: 400 }
       );
     }
 
-    const verification = await verifyToken(token, 'password_reset');
+    const verification = await verifyToken(token, "password_reset");
 
     if (!verification.valid || !verification.userId) {
       return NextResponse.json(
-        { error: verification.error || 'Invalid or expired token' },
+        { error: verification.error || "Invalid or expired token" },
         { status: 400 }
       );
     }
@@ -30,7 +43,7 @@ export async function POST(request: Request) {
 
     // Update password
     const db = await getDatabase();
-    await db.collection('users').updateOne(
+    await db.collection("users").updateOne(
       { _id: new ObjectId(verification.userId) },
       {
         $set: {
@@ -41,10 +54,10 @@ export async function POST(request: Request) {
     );
 
     // Mark token as used
-    await markTokenAsUsed(token, 'password_reset');
+    await markTokenAsUsed(token, "password_reset");
 
     // Update in database
-    await db.collection('password_resets').updateOne(
+    await db.collection("password_resets").updateOne(
       { token },
       {
         $set: {
@@ -56,13 +69,22 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Password reset successfully',
+      message: "Password reset successfully",
     });
   } catch (error) {
-    console.error('Password reset error:', error);
-    return NextResponse.json(
-      { error: 'Failed to reset password' },
-      { status: 500 }
-    );
+    logError(error as Error, "Password Reset failed");
+    throw error;
   }
 }
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: resetPasswordSchema }),
+  withRateLimit({
+    max: 5,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "reset_password",
+  })
+)(resetPasswordHandler);

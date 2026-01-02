@@ -10,12 +10,19 @@ pnpm-debug.log*
 out
 build
 dist
-
+/documentation
+/backup
 # Production
 /build
 /.next/
 /out/
-
+/test-results
+/test_results
+/playwright-report
+/redis
+# Logs
+logs/
+*.log
 # Testing
 coverage
 .nyc_output

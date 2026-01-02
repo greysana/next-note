@@ -1,31 +1,37 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/db/mongodb';
-import { verifyOTP } from '@/lib/auth/redis-auth';
-
-export async function POST(request: Request) {
+import { NextResponse } from "next/server";
+import { getDatabase } from "@/db/mongodb";
+import { verifyOTP } from "@/lib/auth/redis-auth";
+import {
+  compose,
+  withErrorHandling,
+  withLogging,
+  withRateLimit,
+  withValidation,
+} from "@/lib/middlewares";
+import z from "zod";
+import { logError } from "@/lib/middlewares/logger-utils";
+const loginSchema = z.object({
+  email: z
+    .email({ message: "Invalid email" })
+    .nonempty({ message: "Email is required" }),
+  otp: z.string().nonempty({ message: "OTP is required" }),
+});
+async function loginHandler(request: Request): Promise<NextResponse> {
+  const body = await request.json();
+  const { email, otp } = body;
   try {
-    const body = await request.json();
-    const { email, otp } = body;
-
-    if (!email || !otp) {
-      return NextResponse.json(
-        { error: 'Email and OTP are required' },
-        { status: 400 }
-      );
-    }
-
-    const verification = await verifyOTP(email, 'email_verification', otp);
+    const verification = await verifyOTP(email, "email_verification", otp);
 
     if (!verification.valid) {
       return NextResponse.json(
-        { error: verification.error || 'Invalid OTP' },
+        { error: verification.error || "Invalid OTP" },
         { status: 400 }
       );
     }
 
     // Update user
     const db = await getDatabase();
-    await db.collection('users').updateOne(
+    await db.collection("users").updateOne(
       { email },
       {
         $set: {
@@ -37,13 +43,22 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email verified successfully',
+      message: "Email verified successfully",
     });
   } catch (error) {
-    console.error('Email verification error:', error);
-    return NextResponse.json(
-      { error: 'Failed to verify email' },
-      { status: 500 }
-    );
+    logError(error as Error, "Verifying Email failed", { email });
+    throw error;
   }
 }
+
+export const POST = compose(
+  withErrorHandling(),
+  withLogging(),
+  withValidation({ body: loginSchema }),
+  withRateLimit({
+    max: 5,
+    windowMs: 60000,
+    useUserIdentifier: true,
+    action: "login",
+  })
+)(loginHandler);
