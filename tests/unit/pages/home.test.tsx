@@ -1,4 +1,3 @@
-// tests/pages/Home.test.tsx
 import { screen, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,

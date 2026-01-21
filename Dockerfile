@@ -3,8 +3,11 @@ FROM node:18-alpine AS deps
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production --ignore-scripts
-
+RUN npm ci --only=production && \
+    # Cache production dependencies
+    cp -R node_modules /tmp/node_modules && \
+    # Install all dependencies for build
+    npm ci
 # Builder stage
 FROM node:18-alpine AS builder
 WORKDIR /app
@@ -14,14 +17,9 @@ RUN npm ci
 
 COPY . .
 
-# Only set NEXT_PUBLIC_* variables needed at build time
 ARG NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Server-side variables are NOT needed at build time
-# They will be injected at runtime by Kubernetes
-
-# Build the Next.js app
 RUN npm run build
 
 # Runner stage
@@ -45,5 +43,4 @@ USER nextjs
 
 EXPOSE 3000
 
-# Runtime environment variables will be injected by Kubernetes
 CMD ["node", "server.js"]

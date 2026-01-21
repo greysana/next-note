@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/AuthContext";
 import { useAppContext } from "@/hooks/AppContext";
 
-export async function loginAction(prevState: unknown, formData: FormData) {
+async function loginAction(prevState: unknown, formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 

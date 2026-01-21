@@ -1,7 +1,7 @@
 "use client";
 import { useAppContext } from "@/hooks/AppContext";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import AIGeneration from "@/components/AIGeneration"; // Import the AI component
+import AIGeneration from "@/components/AIGeneration";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, use } from "react";
 import {
@@ -117,27 +117,37 @@ export default function NoteDetailPage({
   const selectedFolder = folders.find((f) => f._id === selectedFolderId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-6xl mx-auto p-6">
         {/* AI Generation Component */}
-        <AIGeneration content={content} onContentChange={setContent} />
 
         {/* Header */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="sticky top-0 sm:top-0 z-45 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-4 mb-6 transition-all duration-300">
+          {/* Top Row: Back button, Title, Actions */}
+          <div className="flex items-center justify-between gap-4 mb-3">
             <Link
               href="/notes"
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors shrink-0"
             >
-              <ArrowLeftIcon className="h-5 w-5 mr-2" />
-              Back to Notes
+              <ArrowLeftIcon className="h-5 w-5 mr-1" />
             </Link>
 
-            <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="flex-1 text-xl sm:text-2xl font-bold border-none outline-none bg-transparent placeholder-gray-400 min-w-0"
+              placeholder="Note title..."
+            />
+
+            <div className="flex items-center gap-2 shrink-0">
               {lastSaved && (
-                <span className="text-sm text-green-600 flex items-center">
-                  <CheckIcon className="h-4 w-4 mr-1" />
-                  Saved {lastSaved.toLocaleTimeString()}
+                <span className="hidden md:flex text-xs text-green-600 items-center">
+                  <CheckIcon className="h-3 w-3 mr-1" />
+                  {lastSaved.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </span>
               )}
 
@@ -145,24 +155,19 @@ export default function NoteDetailPage({
                 onClick={handleSave}
                 name="save-note"
                 disabled={isSaving}
-                className={`flex items-center px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors ${
+                className={`flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors ${
                   isSaving ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {isSaving
-                  ? isNewNote
-                    ? "Creating..."
-                    : "Saving..."
-                  : isNewNote
-                    ? "Create Note"
-                    : "Save"}
+                {isSaving ? "..." : isNewNote ? "Create" : "Save"}
               </button>
 
               {!isNewNote && (
                 <button
                   name="delete-note"
+                  aria-label="delete-note"
                   onClick={handleDelete}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <TrashIcon className="h-5 w-5" />
                 </button>
@@ -170,45 +175,36 @@ export default function NoteDetailPage({
             </div>
           </div>
 
-          {/* Title and Folder Selection */}
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400"
-              placeholder="Note title..."
-            />
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center">
-                <FolderIcon className="h-5 w-5 text-gray-500 mr-2" />
-                <select
-                  value={selectedFolderId}
-                  onChange={(e) => setSelectedFolderId(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                >
-                  {folders.map((folder) => (
-                    <option key={folder._id} value={folder._id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedFolder && (
-                <div
-                  data-testid="color-note"
-                  className="px-3 py-1 rounded-full text-sm font-medium text-white"
-                  style={{ backgroundColor: selectedFolder.color }}
-                >
-                  {selectedFolder.name}
-                </div>
-              )}
+          {/* Bottom Row: Folder Selection */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center">
+              <FolderIcon className="h-4 w-4 text-gray-500 mr-2" />
+              <select
+                value={selectedFolderId}
+                onChange={(e) => setSelectedFolderId(e.target.value)}
+                className="border border-gray-300 rounded-lg px-2 py-1 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                {folders.map((folder) => (
+                  <option key={folder._id} value={folder._id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {selectedFolder && (
+              <div
+                data-testid="color-note"
+                className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                style={{ backgroundColor: selectedFolder.color }}
+              >
+                {selectedFolder.name}
+              </div>
+            )}
+
           </div>
         </div>
-
+            <AIGeneration content={content} onContentChange={setContent} />
         {/* Editor */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
           <RichTextEditor

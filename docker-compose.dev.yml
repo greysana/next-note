@@ -1,8 +1,8 @@
 services:
-  nextjs-app:
-    build:
+  nextjs-dev-app:
+    build: 
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       args:
         MONGODB_URI: ${MONGODB_URI}
         NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -11,25 +11,24 @@ services:
         OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
         OPENROUTER_MODEL: ${OPENROUTER_MODEL}
         REDIS_URL: ${REDIS_URL}
+    volumes:
+      - .:/nextjs-dev-app:cached
+      - node_modules:/nextjs-dev-app/node_modules
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
     ports:
-      - "3000:3000"
+      - "3001:3001"
     env_file:
-      - .env
+      - .env.local
+    command: npm run dev
     restart: unless-stopped
     networks:
       - app-network
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+
+volumes:
+  node_modules:
 
 networks:
   app-network:

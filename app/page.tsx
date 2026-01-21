@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/hooks/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Navbar from "@/components/ui/NavBar";
 
 export default function Home() {
   const { notes, folders } = useAppContext();
@@ -16,7 +17,7 @@ export default function Home() {
   const recentNotes = [...notes]
     .sort(
       (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     )
     .slice(0, 6);
 
@@ -24,7 +25,7 @@ export default function Home() {
     const folder = folders.find((f) => f._id === folderId);
     return folder?.name || "Uncategorized";
   };
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,11 +39,13 @@ export default function Home() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50">
+      <Navbar userName={user?.name ?? "Guest"} onLogout={logout} />
+
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+          <h1 className="text-5xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             NextNote
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -106,7 +109,7 @@ export default function Home() {
             <div className="space-y-4">
               <Link
                 href="/notes"
-                className="flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className="flex items-center p-4 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
                 <FolderIcon className="h-6 w-6 mr-3" />
                 <span className="font-semibold">Browse All Notes</span>
@@ -114,7 +117,7 @@ export default function Home() {
 
               <Link
                 href="/notes/new"
-                className="flex items-center p-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className="flex items-center p-4 bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
                 <PlusIcon className="h-6 w-6 mr-3" />
                 <span className="font-semibold">Create New Note</span>
@@ -167,7 +170,7 @@ export default function Home() {
         </div>
 
         {/* Footer CTA */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 rounded-2xl text-white text-center">
+        <div className="bg-linear-to-r from-blue-600 to-purple-600 p-8 rounded-2xl text-white text-center">
           <h2 className="text-2xl font-bold mb-4">
             Ready to organize your thoughts?
           </h2>

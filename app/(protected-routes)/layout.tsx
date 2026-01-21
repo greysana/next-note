@@ -1,5 +1,6 @@
 "use client";
 import { ProtectedRoute } from "@/components/protected-route";
+import Navbar from "@/components/ui/NavBar";
 import { useAuth } from "@/hooks/AuthContext";
 
 export default function ProtectRoutes({
@@ -10,14 +11,7 @@ export default function ProtectRoutes({
   const { user, logout } = useAuth();
   return (
     <ProtectedRoute>
-      {user?.name ?? ""}
-      <button
-        onClick={() => {
-          logout();
-        }}
-      >
-        logout
-      </button>
+      <Navbar userName={user?.name ?? "Guest"} onLogout={logout} />
       {children}
     </ProtectedRoute>
   );

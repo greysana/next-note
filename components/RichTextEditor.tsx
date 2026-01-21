@@ -294,59 +294,11 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       }
     },
   });
-
-  // useEffect(() => {
-  //   if (!editor) return;
-
-  //   const updateActiveBlock = () => {
-  //     const { from } = editor.state.selection;
-  //     const { doc } = editor.state;
-
-  //     // Remove active class from all blocks
-  //     const editorElement = document.querySelector(".ProseMirror");
-  //     if (editorElement) {
-  //       editorElement.querySelectorAll(".active-block").forEach((el) => {
-  //         el.classList.remove("active-block");
-  //       });
-  //     }
-
-  //     // Find and mark the active block
-  //     doc.nodesBetween(from, from, (node, pos) => {
-  //       if (node.isBlock && pos < from) {
-  //         const domNode = editor.view.nodeDOM(pos);
-  //         if (domNode && domNode instanceof Element) {
-  //           domNode.classList.add("active-block");
-  //         }
-  //         return false; // Don't descend into children
-  //       }
-  //     });
-  //   };
-
-  //   editor.on("selectionUpdate", updateActiveBlock);
-  //   editor.on("transaction", updateActiveBlock);
-
-  //   return () => {
-  //     editor.off("selectionUpdate", updateActiveBlock);
-  //     editor.off("transaction", updateActiveBlock);
-  //   };
-  // }, [editor]);
-
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content || null);
     }
   }, [content, editor]);
-  // useEffect(() => {
-  //   const handleClickOutside = () => {
-  //     setShowTextColors(false);
-  //     setShowHighlightColors(false);
-  //   };
-
-  //   if (showTextColors || showHighlightColors) {
-  //     document.addEventListener("click", handleClickOutside);
-  //     return () => document.removeEventListener("click", handleClickOutside);
-  //   }
-  // }, [showTextColors, showHighlightColors]);
 
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -496,7 +448,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
       <div className=" rounded-md relative">
         <EditorContent
           editor={editor}
-          className="my-editor-content min-h-[600px] prose max-w-none [&_.ProseMirror]:focus:outline-none [&_.ProseMirror]:focus-visible:outline-none border border-gray-300 rounded-md p-2 overflow-x-scroll mb-5"
+          className="my-editor-content min-h-150 prose max-w-none [&_.ProseMirror]:focus:outline-none [&_.ProseMirror]:focus-visible:outline-none border border-gray-300 rounded-md p-2 overflow-x-scroll mb-5"
         />
         <input
           ref={fileInputRef}
@@ -552,7 +504,7 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
 
         {/* Audio Recorder Modal */}
         {showAudioRecorder && (
-          <div className="sticky inset-0 bottom-[130px] bg-opacity-50 flex items-center justify-center z-50">
+          <div className="sticky inset-0 bottom-32.5 bg-opacity-50 flex items-center justify-center z-50">
             <div className="max-w-md w-full mx-4">
               <AudioRecorder
                 onAudioSave={handleAudioSave}
@@ -610,7 +562,9 @@ export const RichTextEditor = ({ content, onChange }: RichTextEditorProps) => {
             showTableControls={showTableControls}
             isInTable={isInTable}
           />
+          
           <HistoryGroup editor={editor} />
+
         </div>
       </div>
       <EditorStyles />

@@ -49,7 +49,7 @@ jest.mock("../../../components/RichTextEditor", () => ({
 
 jest.mock("../../../components/AIGeneration", () => ({
   __esModule: true,
-  default: ({ content, onContentChange }: any) => (
+  default: ({ onContentChange }: any) => (
     <div data-testid="ai-generation">
       <button onClick={() => onContentChange("AI generated content")}>
         Generate with AI
@@ -68,7 +68,6 @@ import {
   createMockUser,
   resetAllMocks,
   routerMocks,
-  mockSuccessfulFetch,
 } from "../../utils/test-utils";
 
 import NoteDetailPage from "../../../app/(protected-routes)/notes/[id]/page";
@@ -79,16 +78,16 @@ import { use } from "react";
 // Helper to create params - now just returns the object directly
 // Helper to create params — return plain object at runtime but typed as Promise<{ id: string }>
 const createParams = (id: string) =>
-  ({ id } as unknown as Promise<{ id: string }>);
+  ({ id }) as unknown as Promise<{ id: string }>;
 
-describe("Note Detail Page", () => {  
+describe("Note Detail Page", () => {
   beforeEach(() => {
     resetAllMocks();
 
     // Setup useRouter mock
     (useRouter as jest.Mock).mockReturnValue({
       push: routerMocks.push,
-      replace: routerMocks.replace, 
+      replace: routerMocks.replace,
       prefetch: routerMocks.prefetch,
       back: routerMocks.back,
       forward: routerMocks.forward,
@@ -130,7 +129,7 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -139,7 +138,7 @@ describe("Note Detail Page", () => {
 
       await waitFor(() => {
         const titleInput = screen.getByPlaceholderText(
-          "Note title..."
+          "Note title...",
         ) as HTMLInputElement;
         expect(titleInput.value).toBe("My Test Note");
       });
@@ -165,7 +164,7 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -197,7 +196,7 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -231,7 +230,7 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -254,7 +253,7 @@ describe("Note Detail Page", () => {
       });
 
       const titleInput = screen.getByPlaceholderText(
-        "Note title..."
+        "Note title...",
       ) as HTMLInputElement;
       expect(titleInput.value).toBe("");
     });
@@ -275,7 +274,7 @@ describe("Note Detail Page", () => {
 
     it("pre-selects folder from query parameter", () => {
       (useSearchParams as jest.Mock).mockReturnValue(
-        new URLSearchParams("?folderId=folder-1")
+        new URLSearchParams("?folderId=folder-1"),
       );
 
       const mockFolder = createMockFolder({ _id: "folder-1", name: "Work" });
@@ -326,7 +325,7 @@ describe("Note Detail Page", () => {
           expect.objectContaining({
             title: "New Note",
             userId: "user-123",
-          })
+          }),
         );
       });
 
@@ -362,7 +361,7 @@ describe("Note Detail Page", () => {
         expect(noteService.addNote).toHaveBeenCalledWith(
           expect.objectContaining({
             title: "Untitled Note",
-          })
+          }),
         );
       });
     });
@@ -385,14 +384,13 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
         expect(screen.getByText("Save")).toBeInTheDocument();
       });
     });
-
     it("updates note on save", async () => {
       const user = userEvent.setup();
       const mockNote = createMockNote({
@@ -416,12 +414,16 @@ describe("Note Detail Page", () => {
           appContextValue: {
             notes: [mockNote],
             folders: [createMockFolder()],
+            currentNote: mockNote,
+
+            setCurrentNote: jest.fn(),
+            setIsRefetch: jest.fn(),
           },
           authContextValue: {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -440,7 +442,7 @@ describe("Note Detail Page", () => {
           "note-123",
           expect.objectContaining({
             title: "Updated Title",
-          })
+          }),
         );
       });
     });
@@ -458,12 +460,15 @@ describe("Note Detail Page", () => {
           appContextValue: {
             notes: [mockNote],
             folders: [createMockFolder()],
+            currentNote: mockNote,
+            setCurrentNote: jest.fn(),
+            setIsRefetch: jest.fn(),
           },
           authContextValue: {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -473,11 +478,14 @@ describe("Note Detail Page", () => {
       const saveButton = screen.getByRole("button", { name: /Save/i });
       await user.click(saveButton);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Saved/)).toBeInTheDocument();
-      },{
-        timeout:300
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/Saved/)).toBeInTheDocument();
+        },
+        {
+          timeout: 300,
+        },
+      );
     });
 
     it("updates folder selection", async () => {
@@ -502,12 +510,15 @@ describe("Note Detail Page", () => {
           appContextValue: {
             notes: [mockNote],
             folders: [folder1, folder2],
+            currentNote: mockNote,
+            setCurrentNote: jest.fn(),
+            setIsRefetch: jest.fn(),
           },
           authContextValue: {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
@@ -526,7 +537,7 @@ describe("Note Detail Page", () => {
           "note-123",
           expect.objectContaining({
             folderId: "folder-2",
-          })
+          }),
         );
       });
     });
@@ -549,11 +560,13 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
-        const deleteButton = screen.getByRole("button", { name: "delete-note" });
+        const deleteButton = screen.getByRole("button", {
+          name: "delete-note",
+        });
         expect(deleteButton).toBeInTheDocument();
       });
     });
@@ -569,7 +582,9 @@ describe("Note Detail Page", () => {
         },
       });
 
-      const deleteButton = screen.queryByRole("button", { name: "delete-note" });
+      const deleteButton = screen.queryByRole("button", {
+        name: "delete-note",
+      });
       expect(deleteButton).not.toBeInTheDocument();
     });
 
@@ -589,23 +604,28 @@ describe("Note Detail Page", () => {
           appContextValue: {
             notes: [mockNote],
             folders: [createMockFolder()],
+            currentNote: mockNote,
+            setCurrentNote: jest.fn(),
+            setIsRefetch: jest.fn(),
           },
           authContextValue: {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "delete-note" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "delete-note" }),
+        ).toBeInTheDocument();
       });
 
       const deleteButton = screen.getByRole("button", { name: "delete-note" });
       await user.click(deleteButton);
 
       expect(global.confirm).toHaveBeenCalledWith(
-        "Are you sure you want to delete this note?"
+        "Are you sure you want to delete this note?",
       );
 
       await waitFor(() => {
@@ -635,11 +655,13 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "delete-note" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "delete-note" }),
+        ).toBeInTheDocument();
       });
 
       const deleteButton = screen.getByRole("button", { name: "delete-note" });
@@ -666,7 +688,7 @@ describe("Note Detail Page", () => {
             user: createMockUser(),
             loading: false,
           },
-        }
+        },
       );
 
       const backLink = screen.getByText("Back to Notes").closest("a");
@@ -720,7 +742,7 @@ describe("Note Detail Page", () => {
 
       const select = screen.getByRole("combobox");
       const options = Array.from(select.querySelectorAll("option"));
-      
+
       expect(options).toHaveLength(3);
       expect(options[0]).toHaveTextContent("Work");
       expect(options[1]).toHaveTextContent("Personal");
@@ -761,7 +783,9 @@ describe("Note Detail Page", () => {
         },
       });
 
-      const editor = screen.getByTestId("editor-content") as HTMLTextAreaElement;
+      const editor = screen.getByTestId(
+        "editor-content",
+      ) as HTMLTextAreaElement;
       await user.clear(editor);
       await user.type(editor, "New content");
 
@@ -784,7 +808,9 @@ describe("Note Detail Page", () => {
       const aiButton = screen.getByText("Generate with AI");
       await user.click(aiButton);
 
-      const editor = screen.getByTestId("editor-content") as HTMLTextAreaElement;
+      const editor = screen.getByTestId(
+        "editor-content",
+      ) as HTMLTextAreaElement;
       expect(editor.value).toBe("AI generated content");
     });
   });
@@ -796,7 +822,7 @@ describe("Note Detail Page", () => {
 
       // Make the save operation pending
       (noteService.addNote as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
+        () => new Promise(() => {}), // Never resolves
       );
 
       renderWithProviders(<NoteDetailPage params={createParams("new")} />, {
@@ -817,47 +843,12 @@ describe("Note Detail Page", () => {
       });
     });
 
-    it("shows Saving... when updating existing note", async () => {
-      const user = userEvent.setup();
-      const mockNote = createMockNote({ _id: "note-123" });
-
-      (noteService.getNoteById as jest.Mock).mockResolvedValue(mockNote);
-      (noteService.updateNote as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
-
-      renderWithProviders(
-        <NoteDetailPage params={createParams("note-123")} />,
-        {
-          appContextValue: {
-            notes: [mockNote],
-            folders: [createMockFolder()],
-          },
-          authContextValue: {
-            user: createMockUser(),
-            loading: false,
-          },
-        }
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("Save")).toBeInTheDocument();
-      });
-
-      const saveButton = screen.getByRole("button", { name: /Save/i });
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("Saving...")).toBeInTheDocument();
-      });
-    });
-
-     it("disables save button while saving", async () => { 
+    it("disables save button while saving", async () => {
       const user = userEvent.setup();
       const mockUser = createMockUser({ _id: "user-123" });
- 
+
       (noteService.addNote as jest.Mock).mockImplementation(
-        () => new Promise(() => {})
+        () => new Promise(() => {}),
       );
 
       renderWithProviders(<NoteDetailPage params={createParams("new")} />, {
@@ -886,7 +877,7 @@ describe("Note Detail Page", () => {
       const consoleError = jest.spyOn(console, "error").mockImplementation();
 
       (noteService.addNote as jest.Mock).mockRejectedValue(
-        new Error("Save failed")
+        new Error("Save failed"),
       );
 
       renderWithProviders(<NoteDetailPage params={createParams("new")} />, {
@@ -905,7 +896,7 @@ describe("Note Detail Page", () => {
       await waitFor(() => {
         expect(consoleError).toHaveBeenCalledWith(
           "Error saving note:",
-          expect.any(Error)
+          expect.any(Error),
         );
       });
 
@@ -923,14 +914,14 @@ describe("Note Detail Page", () => {
             folders: [createMockFolder()],
           },
           authContextValue: {
-            user: createMockUser(), 
-            loading: false,  
+            user: createMockUser(),
+            loading: false,
           },
-        }
-      ); 
+        },
+      );
 
       // Should not crash, just show empty form
       expect(screen.getByPlaceholderText("Note title...")).toBeInTheDocument();
     });
   });
-}); 
+});

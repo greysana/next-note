@@ -1,6 +1,6 @@
 "use client";
-import { useState } from 'react';
-import { 
+import { useState } from "react";
+import {
   FaRobot,
   FaTimes,
   FaFile,
@@ -9,8 +9,8 @@ import {
   FaComments,
   FaSpinner,
   FaCopy,
-  FaCheck
-} from 'react-icons/fa';
+  FaCheck,
+} from "react-icons/fa";
 
 interface AIGenerationProps {
   content: string;
@@ -26,90 +26,97 @@ interface Preset {
   prompt: string;
 }
 
-type ContextOption = 'none' | 'selected' | 'full';
+type ContextOption = "none" | "selected" | "full";
 
-const AIGeneration: React.FC<AIGenerationProps> = ({ 
-  content, 
-  onContentChange, 
-  className = "" 
+const AIGeneration: React.FC<AIGenerationProps> = ({
+  content,
+  onContentChange,
+  className = "",
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState('');
-  const [customPrompt, setCustomPrompt] = useState('');
-  const [contextOption, setContextOption] = useState<ContextOption>('selected');
+  const [selectedText, setSelectedText] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("");
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [contextOption, setContextOption] = useState<ContextOption>("selected");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState('');
+  const [generatedContent, setGeneratedContent] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
 
   const presets: Preset[] = [
     {
-      id: 'summarize',
-      label: 'Summarize',
+      id: "summarize",
+      label: "Summarize",
       icon: FaFile,
-      prompt: 'Please summarize the following content in a concise and clear manner'
+      prompt:
+        "Please summarize the following content in a concise and clear manner",
     },
     {
-      id: 'elaborate',
-      label: 'Elaborate',
+      id: "elaborate",
+      label: "Elaborate",
       icon: FaList,
-      prompt: 'Please elaborate and expand on the following content with more details and examples'
+      prompt:
+        "Please elaborate and expand on the following content with more details and examples",
     },
     {
-      id: 'improve',
-      label: 'Improve Writing',
+      id: "improve",
+      label: "Improve Writing",
       icon: FaLightbulb,
-      prompt: 'Please improve the writing quality, grammar, and clarity of the following content'
+      prompt:
+        "Please improve the writing quality, grammar, and clarity of the following content",
     },
     {
-      id: 'bullet_points',
-      label: 'Convert to Bullet Points',
+      id: "bullet_points",
+      label: "Convert to Bullet Points",
       icon: FaList,
-      prompt: 'Please convert the following content into well-organized bullet points'
+      prompt:
+        "Please convert the following content into well-organized bullet points",
     },
     {
-      id: 'explain',
-      label: 'Explain Simply',
+      id: "explain",
+      label: "Explain Simply",
       icon: FaComments,
-      prompt: 'Please explain the following content in simple, easy-to-understand terms'
-    }
+      prompt:
+        "Please explain the following content in simple, easy-to-understand terms",
+    },
   ];
 
   const getSelectedText = (): string => {
     const selection = window.getSelection();
-    return selection ? selection.toString().trim() : '';
+    return selection ? selection.toString().trim() : "";
   };
 
   const handleAIButtonClick = () => {
     const selected = getSelectedText();
     setSelectedText(selected);
-    setContextOption(selected ? 'selected' : 'full');
+    setContextOption(selected ? "selected" : "full");
     setIsModalOpen(true);
-    setGeneratedContent('');
+    setGeneratedContent("");
     setCopySuccess(false);
   };
 
   const buildFinalPrompt = (basePrompt: string): string => {
-    let contextContent = '';
-    
+    let contextContent = "";
+
     switch (contextOption) {
-      case 'selected':
+      case "selected":
         if (selectedText) {
           contextContent = `:\n\n${selectedText}`;
         } else {
-          contextContent = '. No text was selected, so please create comprehensive content as needed.';
+          contextContent =
+            ". No text was selected, so please create comprehensive content as needed.";
         }
         break;
-      case 'full':
-        contextContent = content 
-          ? `:\n\nFull document content:\n${content}` 
-          : '. The document is empty, so please create comprehensive content as needed.';
+      case "full":
+        contextContent = content
+          ? `:\n\nFull document content:\n${content}`
+          : ". The document is empty, so please create comprehensive content as needed.";
         break;
-      case 'none':
-        contextContent = '. Please create comprehensive content without any existing context.';
+      case "none":
+        contextContent =
+          ". Please create comprehensive content without any existing context.";
         break;
     }
-    
+
     return `${basePrompt}${contextContent}
 
 IMPORTANT: Please format your response using proper HTML syntax that is compatible. Use the following HTML elements for styling:
@@ -129,32 +136,32 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
   };
 
   const handleGenerate = async () => {
-    const prompt = selectedPreset 
-      ? presets.find(p => p.id === selectedPreset)?.prompt 
+    const prompt = selectedPreset
+      ? presets.find((p) => p.id === selectedPreset)?.prompt
       : customPrompt;
 
     if (!prompt?.trim()) {
-      alert('Please select a preset or enter a custom prompt');
+      alert("Please select a preset or enter a custom prompt");
       return;
     }
 
     setIsGenerating(true);
-    setGeneratedContent('');
+    setGeneratedContent("");
 
     try {
       const finalPrompt = buildFinalPrompt(prompt);
-      
-      const response = await fetch('/api/ai_generate', {
-        method: 'POST',
+
+      const response = await fetch("/api/ai_generate", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           prompt: finalPrompt,
-          selectedText: contextOption === 'selected' ? selectedText : '',
+          selectedText: contextOption === "selected" ? selectedText : "",
           preset: selectedPreset,
-          fullContent: contextOption === 'full' ? content : '',
-          contextOption: contextOption
+          fullContent: contextOption === "full" ? content : "",
+          contextOption: contextOption,
         }),
       });
 
@@ -163,10 +170,10 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
       }
 
       const data = await response.json();
-      setGeneratedContent(data.content || data.result || '');
+      setGeneratedContent(data.content || data.result || "");
     } catch (error) {
-      console.error('Error generating content:', error);
-      alert('Failed to generate content. Please try again.');
+      console.error("Error generating content:", error);
+      alert("Failed to generate content. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -179,12 +186,12 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
       } catch (error) {
-        console.error('Failed to copy content:', error);
-        const textArea = document.createElement('textarea');
+        console.error("Failed to copy content:", error);
+        const textArea = document.createElement("textarea");
         textArea.value = generatedContent;
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand('copy');
+        document.execCommand("copy");
         document.body.removeChild(textArea);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
@@ -195,7 +202,7 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
   const handleInsertContent = () => {
     if (generatedContent) {
       // Insert at the end of content
-      const newContent = content + '\n' + generatedContent;
+      const newContent = content + "\n" + generatedContent;
       onContentChange(newContent);
       closeModal();
     }
@@ -203,42 +210,42 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedPreset('');
-    setCustomPrompt('');
-    setGeneratedContent('');
-    setSelectedText('');
-    setContextOption('selected');
+    setSelectedPreset("");
+    setCustomPrompt("");
+    setGeneratedContent("");
+    setSelectedText("");
+    setContextOption("selected");
     setCopySuccess(false);
   };
 
   const resetModal = () => {
-    setSelectedPreset('');
-    setCustomPrompt('');
-    setGeneratedContent('');
+    setSelectedPreset("");
+    setCustomPrompt("");
+    setGeneratedContent("");
     setCopySuccess(false);
   };
 
   const getContextDescription = () => {
     switch (contextOption) {
-      case 'none':
-        return 'No context will be included in the prompt';
-      case 'selected':
-        return selectedText 
+      case "none":
+        return "No context will be included in the prompt";
+      case "selected":
+        return selectedText
           ? `Selected text will be included (${selectedText.length} characters)`
-          : 'No text selected - will work without context';
-      case 'full':
+          : "No text selected - will work without context";
+      case "full":
         return `Full document content will be included (${content.length} characters)`;
       default:
-        return '';
+        return "";
     }
   };
 
   return (
     <>
-      {/* Floating AI Button */}
+      {/* Floating AI Button - update z-index */}
       <button
         onClick={handleAIButtonClick}
-        className={`fixed top-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 ${className}`}
+        className={`fixed top-55 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-linear-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 ${className}`}
         title="AI Content Generation"
       >
         <FaRobot className="text-lg" />
@@ -246,14 +253,17 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
       </button>
 
       {/* AI Generation Modal */}
+      {/* AI Generation Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-100 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <FaRobot className="text-2xl text-blue-600" />
-                <h2 className="text-xl font-semibold text-gray-900">AI Content Generation</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  AI Content Generation
+                </h2>
               </div>
               <button
                 onClick={closeModal}
@@ -277,12 +287,18 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                       id="context-none"
                       name="context"
                       value="none"
-                      checked={contextOption === 'none'}
-                      onChange={(e) => setContextOption(e.target.value as ContextOption)}
+                      checked={contextOption === "none"}
+                      onChange={(e) =>
+                        setContextOption(e.target.value as ContextOption)
+                      }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <label htmlFor="context-none" className="ml-3 block text-sm text-gray-700">
-                      <span className="font-medium">None</span> - Generate content without any context
+                    <label
+                      htmlFor="context-none"
+                      className="ml-3 block text-sm text-gray-700"
+                    >
+                      <span className="font-medium">None</span> - Generate
+                      content without any context
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -291,12 +307,18 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                       id="context-selected"
                       name="context"
                       value="selected"
-                      checked={contextOption === 'selected'}
-                      onChange={(e) => setContextOption(e.target.value as ContextOption)}
+                      checked={contextOption === "selected"}
+                      onChange={(e) =>
+                        setContextOption(e.target.value as ContextOption)
+                      }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <label htmlFor="context-selected" className="ml-3 block text-sm text-gray-700">
-                      <span className="font-medium">Selected Text</span> - Use only the text you selected
+                    <label
+                      htmlFor="context-selected"
+                      className="ml-3 block text-sm text-gray-700"
+                    >
+                      <span className="font-medium">Selected Text</span> - Use
+                      only the text you selected
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -305,26 +327,36 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                       id="context-full"
                       name="context"
                       value="full"
-                      checked={contextOption === 'full'}
-                      onChange={(e) => setContextOption(e.target.value as ContextOption)}
+                      checked={contextOption === "full"}
+                      onChange={(e) =>
+                        setContextOption(e.target.value as ContextOption)
+                      }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <label htmlFor="context-full" className="ml-3 block text-sm text-gray-700">
-                      <span className="font-medium">Full Document</span> - Include entire document content
+                    <label
+                      htmlFor="context-full"
+                      className="ml-3 block text-sm text-gray-700"
+                    >
+                      <span className="font-medium">Full Document</span> -
+                      Include entire document content
                     </label>
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-gray-500">{getContextDescription()}</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {getContextDescription()}
+                </p>
               </div>
 
               {/* Selected Text Display */}
-              {selectedText && contextOption === 'selected' && (
+              {selectedText && contextOption === "selected" && (
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Selected Text Preview:
                   </label>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-32 overflow-y-auto">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedText}</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {selectedText}
+                    </p>
                   </div>
                 </div>
               )}
@@ -342,19 +374,23 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                         key={preset.id}
                         onClick={() => {
                           setSelectedPreset(preset.id);
-                          setCustomPrompt('');
+                          setCustomPrompt("");
                         }}
                         className={`p-3 border rounded-lg text-left transition-all hover:shadow-md ${
                           selectedPreset === preset.id
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <IconComponent className="text-sm flex-shrink-0" />
-                          <span className="font-medium text-sm">{preset.label}</span>
+                          <IconComponent className="text-sm shrink-0" />
+                          <span className="font-medium text-sm">
+                            {preset.label}
+                          </span>
                         </div>
-                        <p className="text-xs text-gray-600 line-clamp-2">{preset.prompt}</p>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {preset.prompt}
+                        </p>
                       </button>
                     );
                   })}
@@ -370,7 +406,7 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                   value={customPrompt}
                   onChange={(e) => {
                     setCustomPrompt(e.target.value);
-                    setSelectedPreset('');
+                    setSelectedPreset("");
                   }}
                   placeholder="Enter your custom prompt here..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
@@ -388,11 +424,11 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                     <button
                       onClick={handleCopyContent}
                       className={`flex items-center gap-2 px-3 py-1 text-sm rounded-lg transition-all ${
-                        copySuccess 
-                          ? 'bg-green-100 text-green-700 border border-green-300' 
-                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                        copySuccess
+                          ? "bg-green-100 text-green-700 border border-green-300"
+                          : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
                       }`}
-                      title={copySuccess ? 'Copied!' : 'Copy to clipboard'}
+                      title={copySuccess ? "Copied!" : "Copy to clipboard"}
                     >
                       {copySuccess ? (
                         <>
@@ -408,7 +444,7 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                     </button>
                   </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
-                    <div 
+                    <div
                       className="prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: generatedContent }}
                     />
@@ -445,7 +481,9 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                 {!generatedContent ? (
                   <button
                     onClick={handleGenerate}
-                    disabled={isGenerating || (!selectedPreset && !customPrompt.trim())}
+                    disabled={
+                      isGenerating || (!selectedPreset && !customPrompt.trim())
+                    }
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {isGenerating ? (
@@ -454,7 +492,7 @@ IMPORTANT: Please do not add other words except the output HTML content. Strictl
                         Generating...
                       </>
                     ) : (
-                      'Generate'
+                      "Generate"
                     )}
                   </button>
                 ) : (
